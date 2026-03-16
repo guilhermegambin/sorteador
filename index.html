@@ -1,0 +1,4932 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sorteador de Equipes</title>
+  <style>
+    :root {
+      --bg-1: #eef4ff;
+      --bg-2: #dbe7ff;
+      --panel: rgba(255, 255, 255, 0.96);
+      --panel-2: #eef3ff;
+      --text: #1f2a44;
+      --muted: #60708c;
+      --primary: #4f46e5;
+      --primary-2: #6366f1;
+      --danger: #dc2626;
+      --border: #c9d6ee;
+      --card: #ffffff;
+      --success: #16a34a;
+      --shadow: 0 16px 40px rgba(79, 70, 229, 0.10);
+    }
+
+    body.dark {
+      --bg-1: #020617;
+      --bg-2: #0f172a;
+      --panel: rgba(17, 24, 39, 0.92);
+      --panel-2: #111827;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --primary: #6366f1;
+      --primary-2: #818cf8;
+      --danger: #ef4444;
+      --border: #273449;
+      --card: #0b1220;
+      --success: #22c55e;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(135deg, var(--bg-1), var(--bg-2) 45%, #c7d7f7);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .container {
+      width: min(1240px, calc(100% - 32px));
+      margin: 24px auto 40px;
+    }
+
+    .header,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+    }
+
+    .header {
+      padding: 24px;
+      backdrop-filter: blur(10px);
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+    }
+
+    .subtitle,
+    .saved-badge,
+    .hint,
+    label {
+      color: var(--muted);
+    }
+
+    .subtitle,
+    .hint {
+      line-height: 1.5;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .tab-btn,
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .tab-btn {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 12px 18px;
+    }
+
+    .tab-btn.active,
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      color: #fff;
+    }
+
+    button:hover,
+    .tab-btn:hover { transform: translateY(-1px); }
+
+    .btn-primary { flex: 1; }
+
+    .btn-secondary {
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.14);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel { padding: 18px; }
+
+    .panel h2 {
+      margin: 0 0 14px;
+      font-size: 1.1rem;
+    }
+
+    label {
+      display: block;
+      margin: 12px 0 6px;
+      font-size: 0.92rem;
+    }
+
+    textarea,
+    input,
+    select {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 12px 14px;
+      outline: none;
+      font-size: 0.95rem;
+    }
+
+    textarea {
+      min-height: 180px;
+      resize: vertical;
+    }
+
+    select[multiple] { min-height: 220px; }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--primary-2);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .actions,
+    .inline-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .actions { margin-top: 16px; }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .restriction-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px;
+      margin-top: 14px;
+    }
+
+    .restriction-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 10px;
+      max-height: 280px;
+      overflow: auto;
+    }
+
+    .restriction-item {
+      background: #111827;
+      border: 1px solid #243043;
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.92rem;
+    }
+
+    .restriction-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .badge-separate { background: rgba(245, 158, 11, 0.14); color: #fde68a; }
+    .badge-pair { background: rgba(239, 68, 68, 0.14); color: #fecaca; }
+    .badge-pot { background: rgba(99, 102, 241, 0.18); color: #c7d2fe; }
+
+    .status {
+      margin-top: 14px;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 0.92rem;
+      display: none;
+    }
+
+    .status.show { display: block; }
+    .status.error {
+      background: rgba(239, 68, 68, 0.12);
+      color: #fecaca;
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+    .status.success {
+      background: rgba(34, 197, 94, 0.12);
+      color: #bbf7d0;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+
+    .results {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .team-card {
+      background: linear-gradient(180deg, rgba(99, 102, 241, 0.12), rgba(15, 23, 42, 0.8));
+      border: 1px solid rgba(129, 140, 248, 0.28);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .team-card h3 {
+      margin: 0 0 6px;
+      font-size: 1.08rem;
+      color: #c7d2fe;
+    }
+
+    .team-card small {
+      display: block;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .member {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 10px 12px;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      line-height: 1.35;
+    }
+
+    .drawer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.55);
+      backdrop-filter: blur(3px);
+      opacity: 0;
+      pointer-events: none;
+      transition: 0.2s ease;
+      z-index: 30;
+    }
+
+    .drawer-overlay.show { opacity: 1; pointer-events: auto; }
+
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: -460px;
+      width: min(460px, 100%);
+      height: 100vh;
+      background: rgba(15, 23, 42, 0.98);
+      border-left: 1px solid var(--border);
+      box-shadow: -20px 0 40px rgba(0, 0, 0, 0.35);
+      padding: 20px;
+      transition: right 0.25s ease;
+      z-index: 40;
+      overflow-y: auto;
+    }
+
+    .drawer.show { right: 0; }
+
+    .drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .wheel-layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 560px) minmax(260px, 1fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .wheel-wrap { display: grid; place-items: center; gap: 16px; }
+
+    .wheel-box {
+      position: relative;
+      width: min(560px, 100%);
+      display: grid;
+      place-items: center;
+      margin: 0 auto;
+      padding-top: 8px;
+    }
+
+    .wheel-pointer {
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 18px solid transparent;
+      border-right: 18px solid transparent;
+      border-top: 30px solid #ffffff;
+      z-index: 2;
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35));
+    }
+
+    #wheel {
+      width: min(560px, 100%);
+      height: auto;
+      aspect-ratio: 1;
+      background: radial-gradient(circle at center, rgba(15, 23, 42, 0.8), rgba(2, 6, 23, 1));
+      border-radius: 50%;
+      border: 10px solid #334155;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .wheel-result {
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: 700;
+      min-height: 60px;
+      display: grid;
+      place-items: center;
+      max-width: 560px;
+      padding: 10px;
+      border-radius: 16px;
+    }
+
+    .winner-banner {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: rgba(2, 6, 23, 0.78);
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .winner-banner.show { display: flex; animation: fadeSplash 0.35s ease; }
+
+    .winner-card {
+      position: relative;
+      z-index: 10001;
+      width: min(760px, calc(100vw - 48px));
+      background: linear-gradient(135deg, rgba(99,102,241,0.32), rgba(217,70,239,0.24), rgba(15,23,42,0.98));
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 28px;
+      padding: 32px 28px;
+      text-align: center;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.52);
+      animation: popWinner 0.45s ease;
+    }
+
+    .winner-label {
+      color: #c7d2fe;
+      font-size: 0.92rem;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .winner-name {
+      font-size: clamp(1.8rem, 4vw, 3.2rem);
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.15;
+      word-break: break-word;
+    }
+
+    .winner-sub {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.5;
+    }
+
+    .winner-actions {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    .confetti-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 9999;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      width: 10px;
+      height: 16px;
+      opacity: 0.95;
+      top: -20px;
+      animation-name: confettiFall;
+      animation-timing-function: linear;
+      animation-fill-mode: forwards;
+      border-radius: 2px;
+    }
+
+    @keyframes confettiFall {
+      0% { transform: translate3d(0, -20px, 0) rotate(0deg); opacity: 1; }
+      100% { transform: translate3d(var(--dx), 105vh, 0) rotate(720deg); opacity: 0.1; }
+    }
+
+    @keyframes popWinner {
+      0% { transform: scale(0.9); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes fadeSplash {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    .wheel-side { display: grid; gap: 14px; }
+
+    .wheel-side-card {
+      background: linear-gradient(180deg, rgba(99, 102, 241, 0.08), rgba(2, 6, 23, 0.55));
+      border: 1px solid rgba(129, 140, 248, 0.2);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .wheel-side-card h3 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+      color: #c7d2fe;
+    }
+
+    .team-preview-list {
+      display: grid;
+      gap: 12px;
+      max-height: 420px;
+      overflow: auto;
+      padding: 8px;
+      border-radius: 16px;
+      background: rgba(15, 23, 42, 0.18);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    .team-preview-item {
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 14px;
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.04);
+      transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 10px 24px rgba(2, 6, 23, 0.18);
+    }
+
+    .team-preview-item:hover {
+      transform: translateY(-1px);
+      border-color: rgba(129, 140, 248, 0.5);
+      background: rgba(255, 255, 255, 0.07);
+      box-shadow: 0 14px 28px rgba(2, 6, 23, 0.22);
+    }
+
+    .team-preview-item.active {
+      border-color: rgba(129, 140, 248, 0.78);
+      background: rgba(99, 102, 241, 0.1);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.16) inset, 0 14px 30px rgba(37, 99, 235, 0.14);
+    }
+
+    .team-preview-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #f8fafc;
+      font-size: 0.98rem;
+      letter-spacing: 0.01em;
+    }
+
+    .team-chip {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      background: rgba(99, 102, 241, 0.18);
+      color: #c7d2fe;
+      border: 1px solid rgba(129, 140, 248, 0.22);
+    }
+
+    .team-preview-members {
+      color: #cbd5e1;
+      line-height: 1.5;
+      font-size: 0.92rem;
+    }
+
+    .team-preview-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .status-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      border: 1px solid transparent;
+      letter-spacing: 0.01em;
+    }
+
+    .status-tag.available {
+      background: rgba(34, 197, 94, 0.16);
+      color: #bbf7d0;
+      border-color: rgba(34, 197, 94, 0.35);
+    }
+
+    .status-tag.removed {
+      background: rgba(239, 68, 68, 0.14);
+      color: #fecaca;
+      border-color: rgba(239, 68, 68, 0.35);
+    }
+
+    .status-tag.pending {
+      background: rgba(148, 163, 184, 0.14);
+      color: #cbd5e1;
+      border-color: rgba(148, 163, 184, 0.28);
+    }
+
+    .team-preview-list::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .team-preview-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .team-preview-list::-webkit-scrollbar-thumb {
+      background: rgba(129, 140, 248, 0.35);
+      border-radius: 999px;
+    }
+
+    .team-preview-list::-webkit-scrollbar-thumb:hover {
+      background: rgba(129, 140, 248, 0.65);
+    }
+
+    .config-btn {
+      min-width: 46px;
+      padding-inline: 14px;
+      font-size: 1.1rem;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.72);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10020;
+      padding: 18px;
+    }
+
+    .modal-overlay.show { display: flex; }
+
+    .modal-card {
+      width: min(760px, 100%);
+      max-height: 88vh;
+      overflow: auto;
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(17, 24, 39, 0.98));
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .modal-card h3 {
+      margin: 0 0 8px;
+      font-size: 1.2rem;
+    }
+
+    .candidate-list {
+      display: grid;
+      gap: 8px;
+      max-height: 320px;
+      overflow: auto;
+      padding-right: 4px;
+      margin-top: 10px;
+    }
+
+    .candidate-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.03);
+    }
+
+    .candidate-item.disabled { opacity: 0.5; }
+    .candidate-item input[type="radio"] { width: auto; margin-top: 2px; }
+
+    .candidate-title {
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-bottom: 4px;
+    }
+
+    .candidate-desc {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .candidate-item:hover {
+      border-color: rgba(99, 102, 241, 0.42);
+      background: rgba(99, 102, 241, 0.08);
+    }
+
+    .timer-layout {
+      display: grid;
+      gap: 18px;
+    }
+
+    .timer-controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .timer-display {
+      background: radial-gradient(circle at center, rgba(99, 102, 241, 0.18), rgba(2, 6, 23, 0.85));
+      border: 1px solid rgba(129, 140, 248, 0.28);
+      border-radius: 24px;
+      min-height: 320px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .timer-display.fullscreen,
+    .clock-display.fullscreen {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      border-radius: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at center, rgba(99, 102, 241, 0.28), rgba(2, 6, 23, 0.98));
+      padding: 40px;
+    }
+
+    .timer-display.fullscreen .timer-value { font-size: min(35vw, 22rem); }
+    .timer-display.fullscreen .timer-label { font-size: 1.4rem; }
+
+    .timer-value {
+      font-size: clamp(4rem, 13vw, 9rem);
+      font-weight: 800;
+      letter-spacing: 4px;
+      line-height: 1;
+      color: #fff;
+    }
+
+    .timer-label {
+      color: var(--muted);
+      margin-top: 12px;
+      font-size: 1rem;
+    }
+
+    .clock-display {
+      min-height: 420px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 32px;
+      border: 1px solid rgba(129, 140, 248, 0.28);
+      border-radius: 24px;
+      background: radial-gradient(circle at center, rgba(99, 102, 241, 0.18), rgba(2, 6, 23, 0.85));
+      overflow: hidden;
+      position: relative;
+    }
+
+    .clock-display::before,
+    .clock-display::after {
+      content: '';
+      position: absolute;
+      width: 360px;
+      height: 360px;
+      border-radius: 50%;
+      filter: blur(70px);
+      opacity: 0.25;
+      animation: floatGlow 8s ease-in-out infinite;
+    }
+
+    .clock-display::before {
+      background: rgba(99, 102, 241, 0.5);
+      top: -80px;
+      left: -80px;
+    }
+
+    .clock-display::after {
+      background: rgba(217, 70, 239, 0.45);
+      right: -80px;
+      bottom: -80px;
+      animation-delay: -4s;
+    }
+
+    @keyframes floatGlow {
+      0%, 100% { transform: translateY(0px) scale(1); }
+      50% { transform: translateY(18px) scale(1.06); }
+    }
+
+    .clock-content {
+      position: relative;
+      z-index: 1;
+      animation: breatheClock 4s ease-in-out infinite;
+    }
+
+    @keyframes breatheClock {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.015); }
+    }
+
+    .clock-time {
+      font-size: clamp(4rem, 14vw, 10rem);
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: 6px;
+      color: #fff;
+      text-shadow: 0 0 24px rgba(129, 140, 248, 0.35);
+    }
+
+    .clock-date {
+      font-size: clamp(1.5rem, 3vw, 2.5rem);
+      margin-top: 18px;
+      color: #dbeafe;
+      font-weight: 700;
+    }
+
+    .clock-temp {
+      font-size: clamp(1.2rem, 2.4vw, 1.9rem);
+      margin-top: 14px;
+      color: #cbd5e1;
+    }
+
+    .clock-city {
+      font-size: 1rem;
+      margin-top: 10px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+
+    .sound-layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 1.2fr) minmax(320px, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .sound-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+    }
+
+    .sound-pad {
+      background: linear-gradient(180deg, rgba(99, 102, 241, 0.12), rgba(15, 23, 42, 0.82));
+      border: 1px solid rgba(129, 140, 248, 0.26);
+      border-radius: 18px;
+      padding: 12px;
+      min-height: 148px;
+      display: grid;
+      align-content: start;
+      gap: 10px;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .sound-pad-thumb {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #020617;
+    }
+
+    .sound-pad:hover {
+      transform: translateY(-2px);
+      border-color: rgba(129, 140, 248, 0.55);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+    }
+
+    .sound-pad.active {
+      border-color: rgba(34, 197, 94, 0.72);
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.14) inset;
+    }
+
+    .sound-pad-title {
+      font-size: 1rem;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .sound-pad-desc {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .sound-panel {
+      background: linear-gradient(180deg, rgba(99, 102, 241, 0.08), rgba(2, 6, 23, 0.58));
+      border: 1px solid rgba(129, 140, 248, 0.22);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .sound-player-box {
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: #020617;
+      aspect-ratio: 16 / 9;
+      margin-bottom: 14px;
+      position: relative;
+    }
+
+    .sound-preview {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(180deg, rgba(2,6,23,0.15), rgba(2,6,23,0.75));
+    }
+
+    .sound-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      opacity: 0.72;
+    }
+
+    .sound-preview-badge {
+      position: absolute;
+      inset: auto 16px 16px 16px;
+      background: rgba(2,6,23,0.74);
+      border: 1px solid rgba(129,140,248,0.28);
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    #soundEmbedFrame {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: none;
+      background: #000;
+    }
+
+    .sound-nowplaying {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-bottom: 12px;
+    }
+
+    .sound-controls {
+      display: grid;
+      gap: 12px;
+    }
+
+    .sound-control-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .sound-volume-wrap {
+      display: grid;
+      gap: 8px;
+    }
+
+    .sound-volume-wrap input[type="range"] {
+      width: 100%;
+      accent-color: #6366f1;
+      padding: 0;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+    }
+
+    .sound-small {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .footer {
+      width: min(1240px, calc(100% - 32px));
+      margin: 0 auto 24px;
+      color: #94a3b8;
+      text-align: center;
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 1080px) {
+      .wheel-layout { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .timer-controls,
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+    .audio-box {
+      background: linear-gradient(180deg, rgba(99, 102, 241, 0.08), rgba(2, 6, 23, 0.58));
+      border: 1px solid rgba(129, 140, 248, 0.22);
+      border-radius: 18px;
+      padding: 16px;
+    }
+    .sound-card {
+      width: 100%;
+      text-align: left;
+      background: linear-gradient(180deg, rgba(99, 102, 241, 0.12), rgba(15, 23, 42, 0.82));
+      border: 1px solid rgba(129, 140, 248, 0.26);
+      color: var(--text);
+      min-height: 132px;
+    }
+    .sound-card.active {
+      border-color: rgba(34, 197, 94, 0.72);
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.14) inset;
+    }
+    .shortcut-badge {
+      display:inline-flex; align-items:center; justify-content:center;
+      min-width:34px; padding:4px 8px; border-radius:999px;
+      background: rgba(99,102,241,0.18); color:#c7d2fe; font-size:0.78rem;
+      border:1px solid rgba(129,140,248,0.3);
+    }
+    .sound-url {
+      margin-top:8px;
+      font-size:0.8rem;
+      color:var(--muted);
+      word-break: break-all;
+    }
+    .top-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+    .btn-success { background: rgba(34, 197, 94, 0.14); color: #bbf7d0; border: 1px solid rgba(34,197,94,0.35); }
+    .btn-warning { background: rgba(245, 158, 11, 0.14); color: #fde68a; border: 1px solid rgba(245,158,11,0.35); }
+    .mini-note {
+      margin-top:8px; padding:12px 14px; border-radius:14px;
+      background: rgba(99,102,241,0.08); border:1px solid rgba(129,140,248,0.22); color: var(--muted);
+    }
+    .kbd-list { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .kbd-list kbd {
+      border:1px solid var(--border); background: var(--card); color: var(--text);
+      border-radius: 8px; padding: 4px 8px; font-weight:700;
+    }
+    .muted { color: var(--muted); }
+
+  
+    .theme-switch { display: inline-flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; padding: 8px; border: 1px solid var(--border); border-radius: 16px; background: var(--panel-2); box-shadow: var(--shadow); }
+    .theme-btn { border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; font-weight: 800; cursor: pointer; background: var(--card); color: var(--text); }
+    .theme-btn.active { background: linear-gradient(135deg, var(--primary), var(--primary-2)); color: #fff; border-color: transparent; }
+    .wheel-wrap.fullscreen { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; padding: 28px; background: radial-gradient(circle at center, rgba(99,102,241,0.22), rgba(2,6,23,0.98)); border-radius: 0; min-height: 100vh; width: 100vw; }
+    .wheel-wrap.fullscreen .wheel-box { width: min(78vh, 78vw, 760px); }
+    .wheel-wrap.fullscreen #wheel { width: min(78vh, 78vw, 760px); }
+    .wheel-wrap.fullscreen .wheel-result { font-size: clamp(1.4rem, 2.8vw, 2.4rem); max-width: 900px; color: #fff; background: rgba(15,23,42,0.62); border: 1px solid rgba(129,140,248,0.28); }
+    #results.fullscreen-results { position: fixed; inset: 0; z-index: 9999; overflow: auto; padding: 28px; background: linear-gradient(135deg, var(--bg-1), var(--bg-2) 45%, #111827); grid-template-columns: repeat(4, minmax(0, 1fr)); align-content: start; }
+    @media (max-width:1100px){ #results.fullscreen-results { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    @media (max-width:700px){ #results.fullscreen-results { grid-template-columns: 1fr; } }
+    #pomodoroDisplay.fullscreen { position: fixed; inset: 0; z-index: 9999; border-radius: 0; min-height: 100vh; width: 100vw; padding: 40px; display: grid; place-items: center; text-align: center; background: radial-gradient(circle at center, rgba(127,29,29,0.35), rgba(2,6,23,0.98)); }
+    #pomodoroDisplay.fullscreen.break-mode { background: radial-gradient(circle at center, rgba(20,83,45,0.38), rgba(2,6,23,0.98)); }
+    #pomodoroDisplay.work-mode .timer-value, #pomodoroDisplay.work-mode .timer-status { color: #ef4444; }
+    #pomodoroDisplay.break-mode .timer-value, #pomodoroDisplay.break-mode .timer-status { color: #22c55e; }
+    #pomodoroDisplay.fullscreen .timer-value { font-size: min(28vw, 16rem); font-weight: 900; letter-spacing: 4px; }
+    #pomodoroDisplay.fullscreen .timer-status { font-size: clamp(1.5rem, 3vw, 2.6rem); font-weight: 800; margin-top: 16px; }
+    .pomodoro-grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; align-items:end; }
+    .pomodoro-note { margin-top:8px; padding:10px 12px; border-radius:14px; background: rgba(99,102,241,0.08); border:1px solid rgba(129,140,248,0.22); color: var(--muted); }
+    .timer-status { color: var(--muted); margin-top: 12px; font-size: 1rem; }
+
+  
+    /* Tema claro sem gradientes */
+    body:not(.dark) {
+      background: #dfe8f8;
+    }
+
+    body:not(.dark) .header,
+    body:not(.dark) .panel,
+    body:not(.dark) .audio-box,
+    body:not(.dark) .sound-panel,
+    body:not(.dark) .wheel-side-card,
+    body:not(.dark) .restriction-box,
+    body:not(.dark) .modal-card {
+      background: #f8fbff;
+      border: 1px solid #bfd0ea;
+      box-shadow: 0 10px 28px rgba(79, 70, 229, 0.06);
+    }
+
+    body:not(.dark) .tab-btn,
+    body:not(.dark) .btn-secondary,
+    body:not(.dark) .theme-btn {
+      background: #f8fbff;
+      color: #1f2a44;
+      border: 1px solid #b7c8e6;
+      box-shadow: none;
+    }
+
+    body:not(.dark) .tab-btn.active,
+    body:not(.dark) .btn-primary,
+    body:not(.dark) .theme-btn.active {
+      background: #5b5ce9;
+      color: #ffffff;
+      border-color: #5b5ce9;
+      box-shadow: none;
+    }
+
+    body:not(.dark) .btn-success {
+      background: #e7f8ed;
+      color: #166534;
+      border: 1px solid #9dd8b1;
+    }
+
+    body:not(.dark) .btn-warning {
+      background: #fff6dd;
+      color: #92400e;
+      border: 1px solid #efd08c;
+    }
+
+    body:not(.dark) .btn-danger {
+      background: #feecec;
+      color: #b91c1c;
+      border: 1px solid #f0b5b5;
+    }
+
+    body:not(.dark) textarea,
+    body:not(.dark) input,
+    body:not(.dark) select {
+      background: #ffffff;
+      border: 1px solid #b7c8e6;
+      color: #1f2a44;
+      box-shadow: none;
+    }
+
+    body:not(.dark) .team-card,
+    body:not(.dark) .sound-card,
+    body:not(.dark) .sound-pad,
+    body:not(.dark) .wheel-side-card,
+    body:not(.dark) .sound-player-box {
+      background: #eef3ff;
+      border: 1px solid #b7c8e6;
+      box-shadow: none;
+    }
+
+    body:not(.dark) .team-card h3,
+    body:not(.dark) .wheel-side-card h3,
+    body:not(.dark) .sound-pad-title,
+    body:not(.dark) .sound-title {
+      color: #5164d8;
+    }
+
+    body:not(.dark) .member,
+    body:not(.dark) .candidate-item {
+      background: #ffffff;
+      border: 1px solid #d4def1;
+      color: #1f2a44;
+    }
+
+    body:not(.dark) .team-preview-list {
+      background: #f8fafc;
+      border: 1px solid #dbe3ef;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    }
+
+    body:not(.dark) .team-preview-item {
+      background: #ffffff;
+      border: 1px solid #d9e2ef;
+      color: #1f2a44;
+      box-shadow: 0 8px 18px rgba(148, 163, 184, 0.18);
+    }
+
+    body:not(.dark) .team-preview-item:hover {
+      background: #f4f6ff;
+      border-color: #8ea2ff;
+      box-shadow: 0 12px 24px rgba(99, 102, 241, 0.12);
+    }
+
+    body:not(.dark) .candidate-item:hover {
+      background: #f5f8ff;
+      border-color: #8ea2ff;
+    }
+
+    body:not(.dark) .candidate-title,
+    body:not(.dark) .modal-card h3,
+    body:not(.dark) #wheelConfigModal label,
+    body:not(.dark) .team-preview-title {
+      color: #1f2a44;
+    }
+
+    body:not(.dark) .candidate-desc,
+    body:not(.dark) #wheelConfigModal .saved-badge,
+    body:not(.dark) #forcedSelectionInfo,
+    body:not(.dark) .team-preview-members {
+      color: #4b5b75;
+    }
+
+    body:not(.dark) .status-tag.available {
+      background: #dcfce7;
+      color: #15803d;
+      border-color: #bbf7d0;
+    }
+
+    body:not(.dark) .status-tag.removed {
+      background: #fee2e2;
+      color: #b91c1c;
+      border-color: #fecaca;
+    }
+
+    body:not(.dark) .status-tag.pending {
+      background: #e2e8f0;
+      color: #475569;
+      border-color: #cbd5e1;
+    }
+
+    body:not(.dark) .team-preview-list::-webkit-scrollbar-thumb {
+      background: #cbd5f5;
+    }
+
+    body:not(.dark) .team-preview-list::-webkit-scrollbar-thumb:hover {
+      background: #818cf8;
+    }
+
+    body:not(.dark) .timer-display,
+    body:not(.dark) .clock-display,
+    body:not(.dark) #pomodoroDisplay {
+      background: #5e667d;
+      border: 1px solid #7f8aa3;
+      box-shadow: none;
+    }
+
+    body:not(.dark) .timer-value,
+    body:not(.dark) .clock-time {
+      color: #ffffff;
+      text-shadow: none;
+    }
+
+    body:not(.dark) .timer-label,
+    body:not(.dark) .clock-date,
+    body:not(.dark) .clock-temp,
+    body:not(.dark) .clock-city,
+    body:not(.dark) .sound-desc,
+    body:not(.dark) .sound-url,
+    body:not(.dark) .saved-badge,
+    body:not(.dark) .hint,
+    body:not(.dark) label,
+    body:not(.dark) .mini-note,
+    body:not(.dark) .muted {
+      color: #627493;
+    }
+
+    body:not(.dark) .mini-note,
+    body:not(.dark) .pomodoro-note {
+      background: #eef3ff;
+      border: 1px solid #c8d4eb;
+    }
+
+    body:not(.dark) .shortcut-badge,
+    body:not(.dark) .sound-key,
+    body:not(.dark) .team-chip,
+    body:not(.dark) .kbd-list kbd {
+      background: #e9eeff;
+      color: #5b5ce9;
+      border: 1px solid #cad3fb;
+      box-shadow: none;
+    }
+
+    body:not(.dark) .sound-card.active,
+    body:not(.dark) .sound-pad.active,
+    body:not(.dark) .team-preview-item.active {
+      border-color: #6bc58b;
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.12) inset;
+    }
+
+    body:not(.dark) .timer-display.fullscreen,
+    body:not(.dark) .clock-display.fullscreen,
+    body:not(.dark) #pomodoroDisplay.fullscreen,
+    body:not(.dark) .wheel-wrap.fullscreen,
+    body:not(.dark) #results.fullscreen-results {
+      background: #dfe8f8;
+    }
+
+  
+    /* Melhorias de visualização em tela cheia */
+    body:not(.dark) .clock-display.fullscreen {
+      background: #eef3ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 4vh 4vw;
+    }
+
+    body:not(.dark) .clock-display.fullscreen .clock-content {
+      width: 100%;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    body:not(.dark) .clock-display.fullscreen .clock-time {
+      color: #1f2a44 !important;
+      font-size: clamp(5rem, 16vw, 13rem) !important;
+      font-weight: 900 !important;
+      line-height: 1;
+      letter-spacing: 0.02em;
+      margin: 0 auto;
+      text-shadow: none !important;
+    }
+
+    body:not(.dark) .clock-display.fullscreen .clock-date {
+      color: #4b5f83 !important;
+      font-size: clamp(1.6rem, 3.2vw, 3.4rem) !important;
+      font-weight: 800 !important;
+      margin-top: 22px;
+    }
+
+    body:not(.dark) .clock-display.fullscreen .clock-city {
+      color: #6b7c98 !important;
+      font-size: clamp(1rem, 1.6vw, 1.8rem) !important;
+      font-weight: 700 !important;
+      margin-top: 14px;
+      letter-spacing: 0.08em;
+    }
+
+    body.dark .clock-display.fullscreen {
+      background: #020617;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 4vh 4vw;
+    }
+
+    body.dark .clock-display.fullscreen .clock-time {
+      color: #f8fafc !important;
+      text-shadow: none !important;
+      font-size: clamp(5rem, 16vw, 13rem) !important;
+      font-weight: 900 !important;
+      line-height: 1;
+      letter-spacing: 0.02em;
+    }
+
+    body.dark .clock-display.fullscreen .clock-date {
+      color: #cbd5e1 !important;
+      font-size: clamp(1.6rem, 3.2vw, 3.4rem) !important;
+      font-weight: 800 !important;
+      margin-top: 22px;
+    }
+
+    body.dark .clock-display.fullscreen .clock-city {
+      color: #94a3b8 !important;
+      font-size: clamp(1rem, 1.6vw, 1.8rem) !important;
+      font-weight: 700 !important;
+      margin-top: 14px;
+      letter-spacing: 0.08em;
+    }
+
+    body:not(.dark) .timer-display.fullscreen,
+    body.dark .timer-display.fullscreen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 4vh 4vw;
+    }
+
+    body:not(.dark) .timer-display.fullscreen {
+      background: #eef3ff;
+    }
+
+    body.dark .timer-display.fullscreen {
+      background: #020617;
+    }
+
+    .timer-display.fullscreen > div {
+      width: 100%;
+      max-width: 1600px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    body:not(.dark) .timer-display.fullscreen .timer-value {
+      color: #1f2a44 !important;
+      font-size: clamp(5rem, 16vw, 13rem) !important;
+      font-weight: 900 !important;
+      line-height: 1;
+      letter-spacing: 0.02em;
+      text-shadow: none !important;
+      margin: 0 auto;
+    }
+
+    body.dark .timer-display.fullscreen .timer-value {
+      color: #f8fafc !important;
+      font-size: clamp(5rem, 16vw, 13rem) !important;
+      font-weight: 900 !important;
+      line-height: 1;
+      letter-spacing: 0.02em;
+      text-shadow: none !important;
+      margin: 0 auto;
+    }
+
+    body:not(.dark) .timer-display.fullscreen .timer-label {
+      color: #4b5f83 !important;
+      font-size: clamp(1.4rem, 2.6vw, 2.6rem) !important;
+      font-weight: 800 !important;
+      margin-top: 22px;
+    }
+
+    body.dark .timer-display.fullscreen .timer-label {
+      color: #cbd5e1 !important;
+      font-size: clamp(1.4rem, 2.6vw, 2.6rem) !important;
+      font-weight: 800 !important;
+      margin-top: 22px;
+    }
+
+  
+    .timer-display {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      text-align: center !important;
+    }
+
+    .clock-display {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      text-align: center !important;
+    }
+
+    .timer-display > div,
+    .clock-display .clock-content {
+      width: 100%;
+      margin: 0 auto;
+    }
+
+  
+    /* Ajustes de leitura da roleta */
+    .winner-banner {
+      background: rgba(15, 23, 42, 0.82) !important;
+      backdrop-filter: blur(8px);
+    }
+
+    .winner-card {
+      background: #ffffff !important;
+      border: 1px solid #c9d6ee !important;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28) !important;
+    }
+
+    .winner-label {
+      color: #5b5ce9 !important;
+    }
+
+    .winner-name {
+      color: #1f2a44 !important;
+      text-shadow: none !important;
+    }
+
+    .winner-sub {
+      color: #60708c !important;
+    }
+
+    body.dark .winner-banner {
+      background: rgba(2, 6, 23, 0.9) !important;
+    }
+
+    body.dark .winner-card {
+      background: #0f172a !important;
+      border: 1px solid #334155 !important;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45) !important;
+    }
+
+    body.dark .winner-label {
+      color: #a5b4fc !important;
+    }
+
+    body.dark .winner-name {
+      color: #f8fafc !important;
+    }
+
+    body.dark .winner-sub {
+      color: #cbd5e1 !important;
+    }
+
+  
+
+    .inline-actions button:disabled,
+    .wheel-fullscreen-actions button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .wheel-fullscreen-actions {
+      display: none;
+    }
+
+    .wheel-wrap.fullscreen .wheel-fullscreen-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      row-gap: 8px;
+      align-items: start;
+      position: fixed;
+      right: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 10020;
+      width: min(180px, 18vw);
+      min-width: 150px;
+      padding: 0;
+      background: transparent;
+      border: none;
+      backdrop-filter: none;
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+
+    .wheel-wrap.fullscreen .wheel-fullscreen-actions .btn-secondary,
+    .wheel-wrap.fullscreen .wheel-fullscreen-actions .btn-primary {
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+      white-space: normal;
+      min-height: 36px;
+      padding: 7px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      line-height: 1.1;
+      border-radius: 12px;
+      font-size: 0.82rem;
+      pointer-events: auto;
+      box-shadow: 0 8px 22px rgba(2, 6, 23, 0.18);
+      opacity: 0.95;
+    }
+
+    .wheel-wrap.fullscreen .wheel-fullscreen-actions > * {
+      grid-column: 1;
+      justify-self: end;
+    }
+
+    @media (max-width: 980px) {
+      .wheel-wrap.fullscreen .wheel-fullscreen-actions {
+        right: 12px;
+        width: 150px;
+        min-width: 150px;
+      }
+
+      .wheel-wrap.fullscreen .wheel-fullscreen-actions .btn-secondary,
+      .wheel-wrap.fullscreen .wheel-fullscreen-actions .btn-primary {
+        min-height: 34px;
+        font-size: 0.78rem;
+        padding: 6px 9px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .wheel-wrap.fullscreen .wheel-fullscreen-actions {
+        grid-template-columns: 1fr;
+        row-gap: 8px;
+        top: auto;
+        bottom: 12px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        width: min(92vw, 360px);
+        background: rgba(15, 23, 42, 0.82);
+        border: 1px solid rgba(129, 140, 248, 0.28);
+        backdrop-filter: blur(10px);
+        padding: 12px;
+        border-radius: 18px;
+        pointer-events: auto;
+      }
+
+      .wheel-wrap.fullscreen .wheel-fullscreen-actions > *:nth-child(odd),
+      .wheel-wrap.fullscreen .wheel-fullscreen-actions > *:nth-child(even) {
+        grid-column: 1;
+        justify-self: stretch;
+      }
+
+      .wheel-wrap.fullscreen .wheel-fullscreen-actions .btn-secondary,
+      .wheel-wrap.fullscreen .wheel-fullscreen-actions .btn-primary {
+        max-width: none;
+        min-height: 44px;
+      }
+    }
+
+    .winner-banner {
+      z-index: 11000 !important;
+    }
+
+    .winner-card {
+      position: relative;
+      z-index: 11001 !important;
+    }
+
+  
+/* === ANIMAÇÃO FULLSCREEN ROLETA === */
+
+.wheel-wrap.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, #dfe8f8 0%, #cfdcf5 45%, #bccdea 100%);
+  overflow: hidden;
+}
+
+.wheel-wrap.fullscreen::before,
+.wheel-wrap.fullscreen::after {
+  content: "";
+  position: absolute;
+  width: 380px;
+  height: 380px;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.35;
+  animation: pulseGlow 4s ease-in-out infinite;
+}
+
+.wheel-wrap.fullscreen::before {
+  background: rgba(91, 92, 233, 0.35);
+  top: 10%;
+  left: 18%;
+}
+
+.wheel-wrap.fullscreen::after {
+  background: rgba(34, 197, 94, 0.22);
+  right: 18%;
+  bottom: 10%;
+  animation-delay: 2s;
+}
+
+@keyframes pulseGlow {
+  0%,100% { transform: scale(1) translateY(0); opacity:0.28; }
+  50% { transform: scale(1.12) translateY(10px); opacity:0.5; }
+}
+
+/* === POPUP DO SORTEADO === */
+
+.winner-banner {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15,23,42,0.48);
+  backdrop-filter: blur(6px);
+}
+
+.winner-banner.show { display:flex; }
+
+.winner-card{
+  position:relative;
+  z-index:20001;
+  width:min(900px,92vw);
+  background:#ffffff;
+  border:1px solid #c9d6ee;
+  border-radius:24px;
+  padding:32px;
+  text-align:center;
+  box-shadow:0 24px 80px rgba(15,23,42,0.28);
+  animation: popupWinner .45s ease;
+}
+
+.winner-name{
+  font-size: clamp(2.4rem,6vw,4.5rem);
+  font-weight:900;
+  color:#1f2a44;
+  animation: winnerZoom .55s ease;
+}
+
+.winner-sub{
+  margin-top:12px;
+  font-size: clamp(1rem,2vw,1.4rem);
+  color:#60708c;
+}
+
+@keyframes popupWinner{
+  0%{ transform:scale(.82); opacity:0 }
+  100%{ transform:scale(1); opacity:1 }
+}
+
+@keyframes winnerZoom{
+  0%{ transform:scale(.8); opacity:0; letter-spacing:.08em }
+  100%{ transform:scale(1); opacity:1; letter-spacing:0 }
+}
+
+/* === CONFETTI === */
+
+.confetti-layer{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  overflow:hidden;
+  z-index:19999;
+}
+
+.confetti-piece{
+  position:absolute;
+  top:-20px;
+  width:10px;
+  height:18px;
+  border-radius:3px;
+  animation:confettiFall linear forwards;
+}
+
+@keyframes confettiFall{
+  from{
+    transform:translate3d(0,-20px,0) rotate(0deg);
+    opacity:1;
+  }
+  to{
+    transform:translate3d(var(--dx),105vh,0) rotate(720deg);
+    opacity:.1;
+  }
+}
+
+
+    /* Melhorias da aba Brasília no tema claro */
+    body:not(.dark) .clock-display {
+      background: #43506b !important;
+      border: 1px solid #8fa3c9 !important;
+      box-shadow: 0 12px 28px rgba(31, 42, 68, 0.12) !important;
+    }
+
+    body:not(.dark) .clock-time {
+      color: #ffffff !important;
+      text-shadow: 0 6px 18px rgba(0,0,0,0.18) !important;
+    }
+
+    body:not(.dark) .clock-date {
+      color: #e8eefb !important;
+      font-weight: 800 !important;
+    }
+
+    body:not(.dark) .clock-city {
+      color: #cfd9ee !important;
+      font-weight: 700 !important;
+      letter-spacing: 0.08em;
+    }
+
+    body:not(.dark) .clock-display.fullscreen {
+      background: #43506b !important;
+    }
+
+    body:not(.dark) .clock-display.fullscreen .clock-time {
+      color: #ffffff !important;
+      text-shadow: 0 8px 24px rgba(0,0,0,0.18) !important;
+    }
+
+    body:not(.dark) .clock-display.fullscreen .clock-date {
+      color: #e8eefb !important;
+    }
+
+    body:not(.dark) .clock-display.fullscreen .clock-city {
+      color: #d7e0f4 !important;
+    }
+
+    /* Popup sobreposto à roleta em tela cheia */
+    .winner-banner {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 25000 !important;
+      align-items: center !important;
+      justify-content: center !important;
+      background: rgba(15, 23, 42, 0.52) !important;
+      backdrop-filter: blur(6px) !important;
+    }
+
+    .winner-banner.show {
+      display: flex !important;
+    }
+
+    .winner-card {
+      position: relative !important;
+      z-index: 25001 !important;
+      width: min(980px, 94vw) !important;
+      max-width: 980px !important;
+      box-shadow: 0 30px 90px rgba(0,0,0,0.25) !important;
+    }
+
+    .winner-actions {
+      display: flex !important;
+      gap: 12px !important;
+      flex-wrap: wrap !important;
+      justify-content: center !important;
+      margin-top: 22px !important;
+    }
+
+    .winner-actions .btn-primary,
+    .winner-actions .btn-secondary,
+    .winner-actions .btn-danger {
+      min-width: 180px;
+    }
+
+    /* Controles sempre disponíveis na tela cheia da roleta */
+
+    .inline-actions button:disabled,
+    .wheel-fullscreen-actions button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .wheel-fullscreen-actions {
+      display: none;
+    }
+
+    .wheel-wrap.fullscreen .wheel-fullscreen-actions {
+      display: flex !important;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      z-index: 12000;
+      padding: 14px 18px;
+      border-radius: 18px;
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid rgba(129,140,248,0.26);
+      backdrop-filter: blur(8px);
+    }
+
+    .wheel-wrap.fullscreen .wheel-fullscreen-actions .btn-primary,
+    .wheel-wrap.fullscreen .wheel-fullscreen-actions .btn-secondary,
+    .wheel-wrap.fullscreen .wheel-fullscreen-actions .btn-danger {
+      min-width: 170px;
+    }
+
+    .wheel-wrap.fullscreen .wheel-fullscreen-actions .btn-danger {
+      background: rgba(239, 68, 68, 0.14);
+      color: #fecaca;
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+
+
+
+    /* Ajuste final: confetes sobre o nome na roleta e popup central destacado na tela cheia */
+    .winner-banner.roleta-ativa {
+      z-index: 25000 !important;
+    }
+
+    .winner-banner.roleta-ativa .winner-card {
+      z-index: 25001 !important;
+    }
+
+    .confetti-layer.roleta-ativa {
+      z-index: 26000 !important;
+    }
+
+    .confetti-layer.roleta-ativa .confetti-piece {
+      box-shadow: 0 0 8px rgba(255,255,255,0.18);
+      opacity: 0.98;
+    }
+
+    .winner-banner.roleta-ativa.fullscreen-highlight {
+      background: rgba(15, 23, 42, 0.62) !important;
+      backdrop-filter: blur(8px) !important;
+    }
+
+    .winner-banner.roleta-ativa.fullscreen-highlight .winner-card {
+      width: min(1100px, 94vw) !important;
+      padding: clamp(28px, 4vw, 44px) !important;
+      border-radius: 30px !important;
+      box-shadow: 0 30px 100px rgba(0, 0, 0, 0.32) !important;
+    }
+
+    .winner-banner.roleta-ativa.fullscreen-highlight .winner-name {
+      font-size: clamp(3rem, 7vw, 5.8rem) !important;
+    }
+
+    .winner-banner.roleta-ativa.fullscreen-highlight .winner-sub {
+      font-size: clamp(1.1rem, 2vw, 1.6rem) !important;
+    }
+
+    .winner-banner.roleta-ativa.fullscreen-highlight .winner-actions {
+      margin-top: 28px !important;
+    }
+
+
+    .wheel-wrap.fullscreen .winner-banner,
+    .wheel-wrap.fullscreen .confetti-layer {
+      position: absolute !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .wheel-wrap.fullscreen .winner-banner {
+      z-index: 25000 !important;
+    }
+
+    .wheel-wrap.fullscreen .confetti-layer {
+      z-index: 26000 !important;
+    }
+
+
+
+/* ===== Pomodoro visual forte: miniatura e tela cheia ===== */
+#pomodoroDisplay {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  min-height: 360px;
+  border-radius: 28px;
+  padding: 30px 24px;
+  transition: background 0.25s ease, color 0.25s ease, transform 0.25s ease;
+}
+
+#pomodoroDisplay.work-mode {
+  background: #cf2e2e !important;
+  border-color: #cf2e2e !important;
+}
+
+#pomodoroDisplay.break-mode {
+  background: #238636 !important;
+  border-color: #238636 !important;
+}
+
+#pomodoroDisplay.work-mode .timer-value,
+#pomodoroDisplay.work-mode .timer-status,
+#pomodoroDisplay.break-mode .timer-value,
+#pomodoroDisplay.break-mode .timer-status {
+  color: #ffffff !important;
+  text-shadow: 0 3px 16px rgba(0,0,0,0.18);
+}
+
+#pomodoroDisplay .timer-value {
+  font-size: clamp(4.6rem, 12vw, 9.5rem) !important;
+  line-height: 0.95;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
+#pomodoroDisplay .timer-status {
+  font-size: clamp(1.7rem, 3vw, 3rem) !important;
+  font-weight: 900;
+  margin-top: 18px;
+  text-transform: none;
+}
+
+#pomodoroDisplay.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  border-radius: 0;
+  padding: 32px;
+}
+
+#pomodoroDisplay.fullscreen.work-mode {
+  background: #cf2e2e !important;
+}
+
+#pomodoroDisplay.fullscreen.break-mode {
+  background: #238636 !important;
+}
+
+#pomodoroDisplay.fullscreen .timer-value {
+  font-size: clamp(7rem, 24vw, 18rem) !important;
+  line-height: 0.9;
+  letter-spacing: 4px;
+}
+
+#pomodoroDisplay.fullscreen .timer-status {
+  font-size: clamp(2.8rem, 6vw, 5.5rem) !important;
+  margin-top: 24px;
+}
+
+body:not(.dark) #pomodoroDisplay.work-mode,
+body.dark #pomodoroDisplay.work-mode {
+  background: #cf2e2e !important;
+  border-color: #cf2e2e !important;
+}
+
+body:not(.dark) #pomodoroDisplay.break-mode,
+body.dark #pomodoroDisplay.break-mode {
+  background: #238636 !important;
+  border-color: #238636 !important;
+}
+
+body:not(.dark) #pomodoroDisplay.fullscreen.work-mode,
+body.dark #pomodoroDisplay.fullscreen.work-mode {
+  background: #cf2e2e !important;
+}
+
+body:not(.dark) #pomodoroDisplay.fullscreen.break-mode,
+body.dark #pomodoroDisplay.fullscreen.break-mode {
+  background: #238636 !important;
+}
+
+</style>
+
+
+
+
+<style>
+/* v19: posiciona os botões da roleta em tela cheia na lateral direita */
+#wheelFullscreenActions,
+.wheel-fullscreen-actions{
+  position: fixed !important;
+  top: 140px !important;
+  right: 36px !important;
+  left: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  width: 290px !important;
+  max-width: calc(100vw - 80px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  padding: 14px !important;
+  border-radius: 18px !important;
+  background: rgba(29, 39, 67, 0.22) !important;
+  backdrop-filter: blur(6px) !important;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18) !important;
+  z-index: 9999 !important;
+}
+
+#wheelFullscreenActions button,
+.wheel-fullscreen-actions button{
+  width: 100% !important;
+  min-width: 0 !important;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+  white-space: normal !important;
+}
+
+@media (max-width: 1100px){
+  #wheelFullscreenActions,
+  .wheel-fullscreen-actions{
+    top: auto !important;
+    right: 16px !important;
+    bottom: 16px !important;
+    width: 240px !important;
+  }
+}
+</style>
+
+
+<style>
+/* painel lateral da roleta aparece somente em tela cheia */
+.wheel-fullscreen-actions{
+display:none !important;
+}
+
+.fullscreen .wheel-fullscreen-actions{
+display:flex !important;
+}
+</style>
+
+
+<style>
+/* v22: painel lateral da roleta só aparece quando .wheel-wrap estiver em tela cheia */
+.wheel-wrap #wheelFullscreenActions,
+.wheel-wrap .wheel-fullscreen-actions{
+  display: none !important;
+}
+
+.wheel-wrap.fullscreen #wheelFullscreenActions,
+.wheel-wrap.fullscreen .wheel-fullscreen-actions{
+  display: flex !important;
+}
+</style>
+
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Sorteador de Equipes 1.0</h1>
+      <p class="subtitle">Monte equipes aleatórias, exporte os resultados e use roleta, timer, pomodoro ou relógio de Brasília em abas separadas durante a aula.</p>
+      <div class="theme-switch">
+        <button class="theme-btn" id="themeLightBtn" type="button">☀️ Tema claro</button>
+        <button class="theme-btn" id="themeDarkBtn" type="button">🌙 Tema escuro</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="tab-sorteio">Sorteio de Equipes</button>
+      <button class="tab-btn" data-tab="tab-roleta">Roleta</button>
+      <button class="tab-btn" data-tab="tab-timer">Timer</button>
+      <button class="tab-btn" data-tab="tab-pomodoro">Pomodoro</button>
+      <button class="tab-btn" data-tab="tab-brasilia">Brasília</button>
+      <button class="tab-btn" data-tab="tab-som">Trilhas</button>
+    </div>
+
+    <div id="tab-sorteio" class="tab-content active">
+      <div class="layout">
+        <section class="panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <h2 style="margin:0;">Configuração</h2>
+            <button class="btn-secondary" id="toggleRestrictions" type="button">Abrir regras</button>
+          </div>
+
+          <label for="projectName">Nome da turma / sorteio</label>
+          <input id="projectName" type="text" placeholder="Ex.: 2ºB - Sprint de Requisitos" />
+
+          <label for="names">Lista de participantes (um por linha)</label>
+          <textarea id="names" placeholder="Ana&#10;Bruno&#10;Carlos&#10;Daniela"></textarea>
+
+          <div class="grid-2">
+            <div>
+              <label for="teamCount">Quantidade de equipes</label>
+              <input id="teamCount" type="number" min="1" value="8" />
+            </div>
+            <div>
+              <label for="teamSize">Quantidade de pessoas por equipe</label>
+              <input id="teamSize" type="number" min="1" />
+            </div>
+          </div>
+
+          <div>
+            <label for="maxAttempts">Tentativas do sorteio</label>
+            <input id="maxAttempts" type="number" min="100" value="5000" />
+          </div>
+
+          <p class="hint">Você pode preencher a quantidade de equipes, a quantidade de pessoas por equipe, ou ambos. Quando a divisão não for exata, algumas equipes poderão ficar com 1 participante a mais ou a menos.</p>
+
+          <div class="actions">
+            <button class="btn-primary" id="drawTeams">Sortear equipes</button>
+            <button class="btn-secondary" id="saveData">Salvar</button>
+            <button class="btn-secondary" id="loadData">Carregar</button>
+            <button class="btn-danger" id="clearData">Limpar</button>
+          </div>
+
+          <div id="status" class="status"></div>
+        </section>
+
+        <section class="panel">
+          <div class="topbar">
+            <div>
+              <h2 style="margin-bottom:6px;">Resultado</h2>
+              <div class="saved-badge" id="savedInfo">Nada salvo ainda.</div>
+            </div>
+            <div class="inline-actions">
+              <button class="btn-secondary" id="redrawTeams">Re-sortear</button>
+              <button class="btn-secondary" id="exportPdf">Exportar PDF</button>
+              <button class="btn-secondary" id="exportExcel">Exportar Excel</button>
+              <button class="btn-secondary" id="fullscreenResults">Tela cheia sorteado</button>
+            </div>
+          </div>
+          <div id="results" class="results"></div>
+        </section>
+      </div>
+    </div>
+
+    <div id="tab-roleta" class="tab-content">
+      <section class="panel">
+        <div class="topbar">
+          <div>
+            <h2 style="margin-bottom:6px;">Roleta</h2>
+            <div class="saved-badge">Sorteio individual ou por equipe com base no último sorteio</div>
+          </div>
+          <div class="inline-actions">
+            <select id="wheelMode" style="min-width:220px;">
+              <option value="individual">Modo: Individual</option>
+              <option value="group">Modo: Por equipe</option>
+            </select>
+            <button class="btn-secondary config-btn" id="wheelConfigBtn" title="Configurações" aria-label="Configurações" type="button">⚙</button>
+            <button class="btn-secondary" id="loadWheel">Carregar na roleta</button>
+            <button class="btn-secondary" id="fullscreenWheel">Tela cheia roleta</button>
+            <button class="btn-secondary" id="spinWithSound">Girar roleta com som</button>
+            <button class="btn-secondary" id="stopWheelSound">Stop música</button>
+            <button class="btn-primary" id="spinNow">Girar Roleta</button>
+          </div>
+        </div>
+
+        <div class="wheel-layout">
+          <div class="wheel-wrap">
+            <div class="wheel-box">
+              <div class="wheel-pointer"></div>
+              <canvas id="wheel" width="560" height="560"></canvas>
+            </div>
+            <div id="wheelResult" class="wheel-result">Selecione o modo e carregue a roleta.</div>
+            <div class="wheel-fullscreen-actions" id="wheelFullscreenActions">
+              <button class="btn-secondary" id="wheelSpinWithSoundFullscreen" type="button">Girar roleta com som</button>
+              <button class="btn-secondary" id="wheelStopSoundFullscreen" type="button">Stop música</button>
+              <button class="btn-primary" id="wheelSpinFullscreen" type="button">Girar roleta novamente</button>
+              <button class="btn-secondary" id="wheelWinnerFullscreenInline" type="button">Tela cheia sorteado</button>
+              <button class="btn-secondary" id="wheelBackInline" type="button">Voltar</button>
+              <button class="btn-danger" id="wheelRemoveInline" type="button">Remover sorteado</button>
+              <button class="btn-secondary" id="wheelExitFullscreen" type="button">Sair da tela cheia</button>
+            </div>
+          </div>
+
+          <div class="wheel-side">
+            <div class="wheel-side-card">
+              <h3>Visualização do painel</h3>
+              <label for="previewMode" style="margin-top:0;">Modo de visualização</label>
+              <select id="previewMode">
+                <option value="group">Visualizar grupos</option>
+                <option value="individual">Visualizar individual</option>
+              </select>
+              <div class="hint" style="margin-top:10px;">Você pode exibir o painel por grupos ou por alunos individualmente. Itens removidos recebem uma tag de destaque.</div>
+            </div>
+            <div class="wheel-side-card">
+              <h3>Equipes carregadas</h3>
+              <div id="groupPreviewList" class="team-preview-list">
+                <div class="hint">Faça o sorteio e carregue a roleta para visualizar as equipes aqui.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div id="wheelConfigModal" class="modal-overlay" aria-hidden="true">
+      <div class="modal-card">
+        <div class="topbar" style="margin-bottom:10px;">
+          <div>
+            <h3>Configuração do próximo sorteio</h3>
+            <div class="saved-badge">Escolha um aluno ou grupo para ser o próximo sorteado. Deixe em aleatório para sortear normalmente.</div>
+          </div>
+          <div class="inline-actions">
+            <button class="btn-secondary" id="wheelConfigClose" type="button">Fechar</button>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <label for="configTargetMode">Aplicar no modo</label>
+            <select id="configTargetMode">
+              <option value="individual">Individual</option>
+              <option value="group">Por equipe</option>
+            </select>
+          </div>
+          <div>
+            <label for="candidateFilter">Buscar</label>
+            <input id="candidateFilter" type="text" placeholder="Filtrar aluno ou equipe">
+          </div>
+        </div>
+        <div class="candidate-list" id="candidateList"></div>
+        <div class="actions">
+          <button class="btn-secondary" id="wheelConfigRandom" type="button">Deixar aleatório</button>
+          <button class="btn-primary" id="wheelConfigSave" type="button">Salvar configuração</button>
+        </div>
+        <div class="hint" id="forcedSelectionInfo" style="margin-top:10px;">Nenhum próximo sorteado definido.</div>
+      </div>
+    </div>
+
+    <div id="tab-timer" class="tab-content">
+      <section class="panel">
+        <div class="topbar">
+          <div>
+            <h2 style="margin-bottom:6px;">Timer</h2>
+            <div class="saved-badge">Contagem regressiva grande para usar em sala</div>
+          </div>
+        </div>
+
+        <div class="timer-layout">
+          <div class="timer-controls">
+            <div>
+              <label for="timerMinutes">Minutos</label>
+              <input id="timerMinutes" type="number" min="0" value="10" />
+            </div>
+            <div>
+              <label for="timerSeconds">Segundos</label>
+              <input id="timerSeconds" type="number" min="0" max="59" value="0" />
+            </div>
+            <div>
+              <label for="timerPreset">Atalho</label>
+              <select id="timerPreset">
+                <option value="">Selecione</option>
+                <option value="300">5 minutos</option>
+                <option value="600">10 minutos</option>
+                <option value="900">15 minutos</option>
+                <option value="1200">20 minutos</option>
+                <option value="1800">30 minutos</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn-primary" id="startTimer">Iniciar</button>
+            <button class="btn-secondary" id="pauseTimer">Pausar</button>
+            <button class="btn-secondary" id="resetTimer">Resetar</button>
+            <button class="btn-secondary" id="fullscreenTimer">Tela cheia</button>
+          </div>
+
+          <div class="timer-display" id="timerDisplay">
+            <div>
+              <div id="timerValue" class="timer-value">10:00</div>
+              <div id="timerLabel" class="timer-label">Pronto para iniciar</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    
+    <div id="tab-pomodoro" class="tab-content">
+      <section class="panel">
+        <div class="topbar">
+          <div>
+            <h2 style="margin-bottom:6px;">Pomodoro</h2>
+            <div class="saved-badge">Atividade e descanso com alarme configurável</div>
+          </div>
+          <div class="inline-actions">
+            <button class="btn-secondary" id="fullscreenPomodoro">Tela cheia</button>
+          </div>
+        </div>
+
+        <div class="pomodoro-grid">
+          <div>
+            <label for="pomodoroWork">Atividade (min)</label>
+            <input id="pomodoroWork" type="number" min="1" value="25" />
+          </div>
+          <div>
+            <label for="pomodoroBreak">Descanso (min)</label>
+            <input id="pomodoroBreak" type="number" min="1" value="5" />
+          </div>
+          <div>
+            <label for="pomodoroAlarmUrl">Link do áudio do alarme</label>
+            <input id="pomodoroAlarmUrl" type="url" placeholder="https://.../alarme.mp3" />
+          </div>
+          <div>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:30px;">
+              <input id="pomodoroAlarmEnabled" type="checkbox" checked style="width:auto;">
+              Tocar alarme ao fim da fase
+            </label>
+          </div>
+        </div>
+
+        <div class="pomodoro-note">Atividade fica em vermelho e descanso em verde. Se o link do alarme estiver vazio, o sistema usa um bip interno.</div>
+
+        <div class="timer-display work-mode" id="pomodoroDisplay" style="margin-top:14px;">
+          <div>
+            <div class="timer-value" id="pomodoroTime">25:00</div>
+            <div class="timer-status" id="pomodoroStatus">Atividade</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn-primary" id="pomodoroStart">Iniciar</button>
+          <button class="btn-secondary" id="pomodoroPause">Pausar</button>
+          <button class="btn-secondary" id="pomodoroReset">Resetar</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="tab-brasilia" class="tab-content">
+      <section class="panel">
+        <div class="topbar">
+          <div>
+            <h2 style="margin-bottom:6px;">Brasília</h2>
+            <div class="saved-badge">Dia e horário no fuso de Brasília com localização exibida para TV</div>
+          </div>
+          <div class="inline-actions">
+            <button class="btn-secondary" id="fullscreenClock">Tela cheia</button>
+          </div>
+        </div>
+
+        <div class="clock-display" id="clockDisplay">
+          <div class="clock-content">
+            <div id="clockTime" class="clock-time">00:00:00</div>
+            <div id="clockDate" class="clock-date">00/00/0000</div>
+            <div id="clockCity" class="clock-city">São Paulo - SP</div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div id="tab-som" class="tab-content">
+      <section class="panel">
+        <h2>Trilhas no estilo MyInstants</h2>
+        <div class="mini-note">Os atalhos funcionam fora dos campos de texto. Você pode trocar a URL, criar novas trilhas e mudar a tecla de cada uma.</div>
+        <div class="sound-layout" style="margin-top:14px;">
+          <div>
+            <div class="sound-grid" id="soundGrid"></div>
+          </div>
+          <div>
+            <div class="audio-box">
+              <h3 id="nowPlayingTitle">Nenhuma trilha selecionada</h3>
+              <div class="muted" id="nowPlayingDesc">Selecione um pad para tocar.</div>
+              <audio id="audioPlayer" controls preload="none"></audio>
+              <div class="top-actions">
+                <button class="btn-primary" id="playTrackBtn" type="button">Play</button>
+                <button class="btn-secondary" id="pauseTrackBtn" type="button">Pause</button>
+                <button class="btn-secondary" id="stopTrackBtn" type="button">Stop</button>
+                <button class="btn-secondary" id="restartTrackBtn" type="button">Recomeçar</button>
+              </div>
+              <label for="volumeRange">Volume</label>
+              <input id="volumeRange" type="range" min="0" max="100" value="100">
+              <div class="hint">Atalhos ativos:</div>
+              <div class="kbd-list" id="shortcutList"></div>
+            </div>
+
+            <div class="audio-box" style="margin-top:14px;">
+              <h3>Adicionar / editar trilha</h3>
+              <label for="trackTitle">Título</label>
+              <input id="trackTitle" type="text" placeholder="Ex.: Errou do Faustão">
+              <label for="trackDesc">Descrição</label>
+              <input id="trackDesc" type="text" placeholder="Ex.: efeito de erro clássico">
+              <label for="trackUrl">URL do áudio</label>
+              <input id="trackUrl" type="text" placeholder="https://www.myinstants.com/media/sounds/exemplo.mp3">
+              <label for="trackKey">Tecla de atalho</label>
+              <input id="trackKey" type="text" maxlength="12" placeholder="Ex.: 1, Q, A, F2">
+              <div class="top-actions">
+                <button class="btn-success" id="saveTrackBtn" type="button">Salvar trilha</button>
+                <button class="btn-secondary" id="newTrackBtn" type="button">Nova trilha</button>
+                <button class="btn-danger" id="deleteTrackBtn" type="button">Excluir selecionada</button>
+                <button class="btn-warning" id="resetTracksBtn" type="button">Restaurar padrões</button>
+              </div>
+              <div class="hint" style="margin-top:10px;">Dica: se uma URL não tocar, troque por outra URL direta do áudio. O formulário já ficou preparado para você ajustar rápido.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>  </div>
+
+  <div class="drawer-overlay" id="drawerOverlay"></div>
+
+  <aside class="drawer" id="restrictionDrawer">
+    <div class="drawer-header">
+      <h2>Regras de restrição</h2>
+      <button class="btn-secondary" id="closeRestrictions" type="button">Fechar</button>
+    </div>
+
+    <div class="restriction-box" style="margin-top:0;">
+      <label for="restrictionType">Tipo de regra</label>
+      <select id="restrictionType">
+        <option value="pair">Pessoa A não pode ficar com Pessoa B</option>
+        <option value="solo">Pessoa deve ficar em grupo separado</option>
+        <option value="pot">Participantes pertencem a um pote</option>
+      </select>
+
+      <div class="grid-2">
+        <div>
+          <label for="personA">Pessoa A</label>
+          <select id="personA"></select>
+        </div>
+        <div id="personBWrap">
+          <label for="personB">Pessoa B</label>
+          <select id="personB"></select>
+        </div>
+      </div>
+
+      <div id="potWrap" style="display:none; margin-top:12px;">
+        <label for="potNumber">Número do pote</label>
+        <select id="potNumber">
+          <option value="1">Pote 1</option>
+          <option value="2">Pote 2</option>
+          <option value="3">Pote 3</option>
+          <option value="4">Pote 4</option>
+          <option value="5">Pote 5</option>
+          <option value="6">Pote 6</option>
+          <option value="7">Pote 7</option>
+          <option value="8">Pote 8</option>
+          <option value="9">Pote 9</option>
+          <option value="10">Pote 10</option>
+        </select>
+
+        <label for="potPeople">Participantes do pote</label>
+        <select id="potPeople" multiple size="10"></select>
+        <p class="hint">Segure Ctrl ou Cmd para selecionar várias pessoas no mesmo pote.</p>
+      </div>
+
+      <div class="actions">
+        <button class="btn-secondary" id="addRestriction" type="button">Adicionar regra</button>
+        <button class="btn-secondary" id="exportRules" type="button">Exportar regras</button>
+        <button class="btn-secondary" id="importRules" type="button">Importar regras</button>
+        <input id="importRulesFile" type="file" accept="application/json" style="display:none;" />
+      </div>
+
+      <div class="restriction-list" id="restrictionList"></div>
+      <p class="hint">Regras do tipo “grupo separado” fazem a pessoa ficar sozinha em uma equipe. Regras do tipo “não pode ficar com” impedem a dupla de cair no mesmo grupo. Regras de pote distribuem participantes por nível, evitando que alunos do mesmo pote fiquem juntos quando a configuração permitir.</p>
+    </div>
+  </aside>
+
+  <div id="confettiLayer" class="confetti-layer" aria-hidden="true"></div>
+
+  <div id="winnerBanner" class="winner-banner" aria-live="polite">
+    <div class="winner-card">
+      <div class="winner-label">Sorteado</div>
+      <div id="winnerName" class="winner-name"></div>
+      <div id="winnerSub" class="winner-sub"></div>
+      <div class="winner-actions">
+        <button id="winnerSpinAgain" class="btn-primary" type="button">Girar roleta novamente</button>
+        <button id="winnerFullscreen" class="btn-secondary" type="button">Tela cheia resultado</button>
+        <button id="winnerBack" class="btn-secondary" type="button">Voltar</button>
+        <button id="winnerRemove" class="btn-danger" type="button">Remover sorteado</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">Desenvolvido por Guilherme Tangerina Gambin - SENAI</footer>
+
+  <script>
+    const STORAGE_KEY = 'sorteador_equipes_config_v5';
+    const WHEEL_COLORS = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#ec4899'];
+
+    const projectName = document.getElementById('projectName');
+    const names = document.getElementById('names');
+    const teamCount = document.getElementById('teamCount');
+    const teamSize = document.getElementById('teamSize');
+    const maxAttempts = document.getElementById('maxAttempts');
+    const restrictionType = document.getElementById('restrictionType');
+    const personA = document.getElementById('personA');
+    const personB = document.getElementById('personB');
+    const personBWrap = document.getElementById('personBWrap');
+    const potWrap = document.getElementById('potWrap');
+    const potNumber = document.getElementById('potNumber');
+    const potPeople = document.getElementById('potPeople');
+    const restrictionList = document.getElementById('restrictionList');
+    const exportRulesBtn = document.getElementById('exportRules');
+    const importRulesBtn = document.getElementById('importRules');
+    const importRulesFile = document.getElementById('importRulesFile');
+    const results = document.getElementById('results');
+    const status = document.getElementById('status');
+    const savedInfo = document.getElementById('savedInfo');
+    const restrictionDrawer = document.getElementById('restrictionDrawer');
+    const drawerOverlay = document.getElementById('drawerOverlay');
+    const exportPdfBtn = document.getElementById('exportPdf');
+    const exportExcelBtn = document.getElementById('exportExcel');
+    const fullscreenResultsBtn = document.getElementById('fullscreenResults');
+    const themeLightBtn = document.getElementById('themeLightBtn');
+    const themeDarkBtn = document.getElementById('themeDarkBtn');
+
+    const wheelCanvas = document.getElementById('wheel');
+    const wheelResult = document.getElementById('wheelResult');
+    const wheelMode = document.getElementById('wheelMode');
+    const loadWheelBtn = document.getElementById('loadWheel');
+    const spinNowBtn = document.getElementById('spinNow');
+    const spinWithSoundBtn = document.getElementById('spinWithSound');
+    const stopWheelSoundBtn = document.getElementById('stopWheelSound');
+    const fullscreenWheelBtn = document.getElementById('fullscreenWheel');
+    const groupPreviewList = document.getElementById('groupPreviewList');
+    const wheelWrap = document.querySelector('.wheel-wrap');
+    const resultsEl = document.getElementById('results');
+    const ctx = wheelCanvas.getContext('2d');
+    const confettiLayer = document.getElementById('confettiLayer');
+    const winnerBanner = document.getElementById('winnerBanner');
+    const confettiOriginalParent = confettiLayer.parentElement;
+    const winnerOriginalParent = winnerBanner.parentElement;
+    const winnerName = document.getElementById('winnerName');
+    const winnerSub = document.getElementById('winnerSub');
+    const winnerBack = document.getElementById('winnerBack');
+    const winnerSpinAgain = document.getElementById('winnerSpinAgain');
+    const winnerFullscreenBtn = document.getElementById('winnerFullscreen');
+    const winnerRemove = document.getElementById('winnerRemove');
+    const wheelSpinFullscreenBtn = document.getElementById('wheelSpinFullscreen');
+    const wheelSpinWithSoundFullscreenBtn = document.getElementById('wheelSpinWithSoundFullscreen');
+    const wheelStopSoundFullscreenBtn = document.getElementById('wheelStopSoundFullscreen');
+    const wheelWinnerFullscreenInlineBtn = document.getElementById('wheelWinnerFullscreenInline');
+    const wheelBackInlineBtn = document.getElementById('wheelBackInline');
+    const wheelRemoveInlineBtn = document.getElementById('wheelRemoveInline');
+    const wheelExitFullscreenBtn = document.getElementById('wheelExitFullscreen');
+    const wheelConfigBtn = document.getElementById('wheelConfigBtn');
+    const previewMode = document.getElementById('previewMode');
+    const wheelConfigModal = document.getElementById('wheelConfigModal');
+    const wheelConfigClose = document.getElementById('wheelConfigClose');
+    const configTargetMode = document.getElementById('configTargetMode');
+    const candidateFilter = document.getElementById('candidateFilter');
+    const candidateList = document.getElementById('candidateList');
+    const wheelConfigRandom = document.getElementById('wheelConfigRandom');
+    const wheelConfigSave = document.getElementById('wheelConfigSave');
+    const forcedSelectionInfo = document.getElementById('forcedSelectionInfo');
+
+    const timerMinutes = document.getElementById('timerMinutes');
+    const timerSeconds = document.getElementById('timerSeconds');
+    const timerPreset = document.getElementById('timerPreset');
+    const timerValue = document.getElementById('timerValue');
+    const timerLabel = document.getElementById('timerLabel');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const startTimerBtn = document.getElementById('startTimer');
+    const pauseTimerBtn = document.getElementById('pauseTimer');
+    const resetTimerBtn = document.getElementById('resetTimer');
+    const fullscreenTimerBtn = document.getElementById('fullscreenTimer');
+
+    const clockDisplay = document.getElementById('clockDisplay');
+    const clockTime = document.getElementById('clockTime');
+    const clockDate = document.getElementById('clockDate');
+    const clockCity = document.getElementById('clockCity');
+    const fullscreenClockBtn = document.getElementById('fullscreenClock');
+
+    const pomodoroDisplay = document.getElementById('pomodoroDisplay');
+    const pomodoroTimeEl = document.getElementById('pomodoroTime');
+    const pomodoroStatusEl = document.getElementById('pomodoroStatus');
+    const pomodoroStartBtn = document.getElementById('pomodoroStart');
+    const pomodoroPauseBtn = document.getElementById('pomodoroPause');
+    const pomodoroResetBtn = document.getElementById('pomodoroReset');
+    const pomodoroWorkInput = document.getElementById('pomodoroWork');
+    const pomodoroBreakInput = document.getElementById('pomodoroBreak');
+    const pomodoroAlarmUrlInput = document.getElementById('pomodoroAlarmUrl');
+    const pomodoroAlarmEnabledInput = document.getElementById('pomodoroAlarmEnabled');
+    const fullscreenPomodoroBtn = document.getElementById('fullscreenPomodoro');
+
+    const soundPadGrid = document.getElementById('soundPadGrid');
+    const soundNowPlaying = document.getElementById('soundNowPlaying');
+    const audioPlayer = document.getElementById('audioPlayer');
+
+    function normalizeMyInstantsUrl(url) {
+      if (!url) return url;
+      return String(url).replace(/(https:\/\/www\.myinstants\.com\/media\/sounds\/[a-z0-9\-]+)-\d+(\.mp3)/i, '$1$2');
+    }
+    const volumeRange = document.getElementById('volumeRange');
+    const soundGrid = document.getElementById('soundGrid');
+    const shortcutList = document.getElementById('shortcutList');
+    const nowPlayingTitle = document.getElementById('nowPlayingTitle');
+    const nowPlayingDesc = document.getElementById('nowPlayingDesc');
+    const trackTitle = document.getElementById('trackTitle');
+    const trackDesc = document.getElementById('trackDesc');
+    const trackUrl = document.getElementById('trackUrl');
+    const trackKey = document.getElementById('trackKey');
+
+    let restrictions = [];
+    let lastTeams = [];
+    let wheelItems = [];
+    let wheelRotation = 0;
+    let wheelIdleAnimationId = null;
+    let isSpinning = false;
+    let timerInterval = null;
+    let timerRemaining = 600;
+    let currentTrackIndex = -1;
+    let lastWheelWinner = null;
+    let forcedNextSelection = { individual: '', group: '' };
+
+    const STORAGE_TRACKS = 'sorteador_tracks_v11_myinstants_plus5';
+    const defaultTracks = [
+      {
+            "title": "Pião do Baú",
+            "desc": "Tema cômico para resultado ou transição.",
+            "url": "https://www.myinstants.com/media/sounds/piao-do-bau-com-musica.mp3",
+            "key": "7"
+      },
+      {
+            "title": "Certa resposta — Show do Milhão",
+            "desc": "Efeito de acerto em clima de quiz.",
+            "url": "https://www.myinstants.com/media/sounds/certa-resposta-show-do-milhao.mp3",
+            "key": "A"
+      },
+      {
+            "title": "Errou — Show do Milhão",
+            "desc": "Erro clássico de programa de perguntas.",
+            "url": "https://www.myinstants.com/media/sounds/errou-show-do-milhao.mp3",
+            "key": "S"
+      },
+      {
+            "title": "Ninguém acertou — Faustão",
+            "desc": "Reação divertida quando ninguém acerta.",
+            "url": "https://www.myinstants.com/media/sounds/ninguem-acertou.mp3",
+            "key": "D"
+      },
+      {
+            "title": "Errou — Game Show",
+            "desc": "Erro seco de game show.",
+            "url": "https://www.myinstants.com/media/sounds/lost-a-life-game-over-sound-effect-8-bits.mp3",
+            "key": "F"
+      },
+      {
+            "title": "Errou nada nada",
+            "desc": "Erro engraçado e rápido.",
+            "url": "https://www.myinstants.com/media/sounds/errou-nadanada.mp3",
+            "key": "G"
+      },
+      {
+            "title": "Plateia",
+            "desc": "Reação da plateia.",
+            "url": "https://www.myinstants.com/media/sounds/plateia.mp3",
+            "key": "H"
+      },
+      {
+            "title": "Carmen Overture",
+            "desc": "Trilha clássica para abertura ou intervalo.",
+            "url": "https://www.myinstants.com/media/sounds/georges-bizet-carmen-overture.mp3",
+            "key": "J"
+      },
+      {
+            "title": "Ele fez de novo",
+            "desc": "Reação engraçada para repetição.",
+            "url": "https://www.myinstants.com/media/sounds/ele-fezz-de-novo-incansavel.mp3",
+            "key": "K"
+      },
+      {
+            "title": "Irra — Ratinho",
+            "desc": "Reação animada do Ratinho.",
+            "url": "https://www.myinstants.com/media/sounds/irra-ratinho.mp3",
+            "key": "L"
+      },
+      {
+            "title": "Pare",
+            "desc": "Comando de pausa ou atenção.",
+            "url": "https://www.myinstants.com/media/sounds/pare.mp3",
+            "key": "Z"
+      },
+      {
+            "title": "Que isso, fi? — Faro",
+            "desc": "Reação surpresa engraçada.",
+            "url": "https://www.myinstants.com/media/sounds/que-isso-fi-faro.mp3",
+            "key": "X"
+      },
+      {
+            "title": "Uepa",
+            "desc": "Efeito de surpresa.",
+            "url": "https://www.myinstants.com/media/sounds/uepa_d0qhZxO.mp3",
+            "key": "C"
+      },
+      {
+            "title": "Sad violin",
+            "desc": "Violino triste de meme.",
+            "url": "https://www.myinstants.com/media/sounds/tf_nemesis.mp3",
+            "key": "V"
+      },
+      {
+            "title": "Bongo feet",
+            "desc": "Percussão curta e descontraída.",
+            "url": "https://www.myinstants.com/media/sounds/bongo-feet.mp3",
+            "key": "B"
+      },
+      {
+            "title": "Aplausos",
+            "desc": "Aplausos para acertos ou sorteios.",
+            "url": "https://www.myinstants.com/media/sounds/aplausos-eeee.mp3",
+            "key": "N"
+      },
+      {
+            "title": "Surpresa",
+            "desc": "Surpresa exagerada.",
+            "url": "https://www.myinstants.com/media/sounds/surpresaaaaaaa.mp3",
+            "key": "M"
+      },
+      {
+            "title": "I Feel Good",
+            "desc": "Clima de vitória e energia.",
+            "url": "https://www.myinstants.com/media/sounds/james_brown_-_i_got_you_i_feel_good-1-i-got-you-i-feel-goodtrack-1.mp3",
+            "key": "1"
+      },
+      {
+            "title": "12th Street Rag",
+            "desc": "Trilha divertida e acelerada.",
+            "url": "https://www.myinstants.com/media/sounds/sound-baord-spongebob.mp3",
+            "key": "2"
+      },
+      {
+            "title": "Gol do Brasil",
+            "desc": "Vinheta de gol para celebração.",
+            "url": "https://www.myinstants.com/media/sounds/vinheta_gol_do_brasil_1994_.mp3",
+            "key": "3"
+      },
+      {
+            "title": "Agora eu entendi",
+            "desc": "Reação de entendimento.",
+            "url": "https://www.myinstants.com/media/sounds/ah-agora-eu-entendi-agora-eu-saquei_Hocs3Q4.mp3",
+            "key": "4"
+      },
+      {
+            "title": "Tema do Senna",
+            "desc": "Tema épico de vitória.",
+            "url": "https://www.myinstants.com/media/sounds/senna-theme.mp3",
+            "key": "5"
+      },
+      {
+            "title": "Roda a Roda — 10 segundos",
+            "desc": "Contagem ou pressão de tempo.",
+            "url": "https://www.myinstants.com/media/sounds/roda-roda-jequiti-tempo-10-segundos.mp3",
+            "key": "6"
+      },
+      {
+            "title": "Sirene BBB",
+            "desc": "Alerta forte para atenção.",
+            "url": "https://www.myinstants.com/media/sounds/sirene-alerta-alarme-bbb.mp3",
+            "key": "8"
+      },
+      {
+            "title": "Pergunta — Silvio Santos",
+            "desc": "Clima de pergunta e suspense.",
+            "url": "https://www.myinstants.com/media/sounds/pergunta-silvio-santos.mp3",
+            "key": "9"
+      },
+      {
+            "title": "Som de mistério",
+            "desc": "Mistério para expectativa.",
+            "url": "https://www.myinstants.com/media/sounds/y2mate_kKZFjgX.mp3",
+            "key": "0"
+      },
+      {
+            "title": "Oh no",
+            "desc": "Erro ou imprevisto em tom de meme.",
+            "url": "https://www.myinstants.com/media/sounds/oh-no-no-no_x52qaxB.mp3",
+            "key": "Q"
+      },
+      {
+            "title": "Sudden suspense",
+            "desc": "Suspense rápido.",
+            "url": "https://www.myinstants.com/media/sounds/sudden-suspense.mp3",
+            "key": "W"
+      },
+      {
+            "title": "Suspense strike",
+            "desc": "Batida de suspense.",
+            "url": "https://www.myinstants.com/media/sounds/sound-effect-suspense-strike.mp3",
+            "key": "E"
+      },
+      {
+            "title": "Dun dun duuun",
+            "desc": "Suspense clássico.",
+            "url": "https://www.myinstants.com/media/sounds/dun_dun_dun.mp3",
+            "key": "R"
+      },
+      {
+            "title": "Suspense Jason",
+            "desc": "Suspense mais tenso.",
+            "url": "https://www.myinstants.com/media/sounds/illuminati-confirmed-sound-effect-hd-audio.mp3",
+            "key": "T"
+      },
+      {
+            "title": "Suspense drums",
+            "desc": "Tambores de suspense.",
+            "url": "https://www.myinstants.com/media/sounds/suspense-drums.mp3",
+            "key": "Y"
+      },
+      {
+            "title": "Violin terror",
+            "desc": "Violino de tensão/terror.",
+            "url": "https://www.myinstants.com/media/sounds/psycho-violin-screech.mp3",
+            "key": "U"
+      }      ,
+      {
+            "title": "Errou Faustão",
+            "desc": "Erro clássico do Faustão.",
+            "url": "https://www.myinstants.com/media/sounds/vinheta-faustao-errou-rede-globo.mp3",
+            "key": "P"
+      },
+      {
+            "title": "Acertou Faustão",
+            "desc": "Acerto comemorado pelo Faustão.",
+            "url": "https://www.myinstants.com/media/sounds/acertou-faustao.mp3",
+            "key": "I"
+      },
+      {
+            "title": "Uou efeito sonoro",
+            "desc": "Reação de surpresa/impacto.",
+            "url": "https://www.myinstants.com/media/sounds/uou-efeito-sonoro.mp3",
+            "key": "O"
+      },
+      {
+            "title": "Yeehaw do cowboy",
+            "desc": "Efeito divertido estilo cowboy.",
+            "url": "https://www.myinstants.com/media/sounds/yeehaw-do-cowboy.mp3",
+            "key": "F1"
+      },
+      {
+            "title": "Erro do Windows",
+            "desc": "Som clássico de erro do Windows.",
+            "url": "https://www.myinstants.com/media/sounds/erro-do-windows.mp3",
+            "key": "F2"
+      }
+
+];
+    let tracks = [];
+
+    function showStatus(message, type = 'success') {
+      status.textContent = message;
+      status.className = `status show ${type}`;
+    }
+
+    function clearStatus() {
+      status.className = 'status';
+      status.textContent = '';
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = String(text ?? '');
+      return div.innerHTML;
+    }
+
+    function getParticipantList() {
+      const normalized = String(names.value || '').replaceAll('\r', '');
+      return [...new Set(normalized.split('\n').map((name) => name.trim()).filter(Boolean))];
+    }
+
+    function updateParticipantSelectors() {
+      const participants = getParticipantList();
+      const options = ['<option value="">Selecione</option>']
+        .concat(participants.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`))
+        .join('');
+
+      personA.innerHTML = options;
+      personB.innerHTML = options;
+      potPeople.innerHTML = participants.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+    }
+
+    function updateRestrictionUi() {
+      const type = restrictionType.value;
+      personBWrap.style.display = type === 'pair' ? 'block' : 'none';
+      potWrap.style.display = type === 'pot' ? 'block' : 'none';
+    }
+
+    function normalizePair(a, b) {
+      return [a.trim(), b.trim()].sort((x, y) => x.localeCompare(y, 'pt-BR'));
+    }
+
+    function addRestriction() {
+      const type = restrictionType.value;
+      const a = personA.value.trim();
+      const b = personB.value.trim();
+
+      if (type === 'pot') {
+        const pot = Number(potNumber.value);
+        const selectedPeople = Array.from(potPeople.selectedOptions).map((option) => option.value.trim()).filter(Boolean);
+
+        if (!selectedPeople.length) {
+          showStatus('Selecione pelo menos uma pessoa para o pote.', 'error');
+          return;
+        }
+
+        selectedPeople.forEach((person) => {
+          const existingIndex = restrictions.findIndex((r) => r.type === 'pot' && r.a === person);
+          if (existingIndex >= 0) restrictions[existingIndex].pot = pot;
+          else restrictions.push({ type: 'pot', a: person, pot });
+        });
+
+        renderRestrictions();
+        showStatus('Pote atribuído aos participantes selecionados.', 'success');
+        return;
+      }
+
+      if (!a) {
+        showStatus('Selecione a pessoa da regra.', 'error');
+        return;
+      }
+
+      if (type === 'solo') {
+        if (restrictions.some((r) => r.type === 'solo' && r.a === a)) {
+          showStatus('Essa regra de grupo separado já foi cadastrada.', 'error');
+          return;
+        }
+        restrictions.push({ type: 'solo', a });
+        renderRestrictions();
+        showStatus('Regra adicionada com sucesso.', 'success');
+        return;
+      }
+
+      if (!b) {
+        showStatus('Selecione as duas pessoas para criar a regra.', 'error');
+        return;
+      }
+
+      if (a === b) {
+        showStatus('A regra precisa envolver duas pessoas diferentes.', 'error');
+        return;
+      }
+
+      const [first, second] = normalizePair(a, b);
+      if (restrictions.some((r) => r.type === 'pair' && r.a === first && r.b === second)) {
+        showStatus('Essa regra já foi cadastrada.', 'error');
+        return;
+      }
+
+      restrictions.push({ type: 'pair', a: first, b: second });
+      renderRestrictions();
+      showStatus('Regra adicionada com sucesso.', 'success');
+    }
+
+    function removeRestriction(index) {
+      restrictions.splice(index, 1);
+      renderRestrictions();
+    }
+
+    function renderRestrictions() {
+      restrictionList.innerHTML = '';
+      if (!restrictions.length) {
+        restrictionList.innerHTML = '<div class="hint">Nenhuma regra cadastrada.</div>';
+        return;
+      }
+
+      restrictions.forEach((rule, index) => {
+        const item = document.createElement('div');
+        item.className = 'restriction-item';
+
+        let content = '';
+        if (rule.type === 'solo') {
+          content = `<div><div class="restriction-badge badge-separate">Grupo separado</div><div>${escapeHtml(rule.a)} deve ficar sozinho em uma equipe</div></div>`;
+        } else if (rule.type === 'pot') {
+          content = `<div><div class="restriction-badge badge-pot">Pote ${rule.pot}</div><div>${escapeHtml(rule.a)} pertence ao Pote ${rule.pot}</div></div>`;
+        } else {
+          content = `<div><div class="restriction-badge badge-pair">Não juntar</div><div>${escapeHtml(rule.a)} não pode ficar com ${escapeHtml(rule.b)}</div></div>`;
+        }
+
+        item.innerHTML = `${content}<button class="btn-danger" type="button">Excluir</button>`;
+        item.querySelector('button').addEventListener('click', () => removeRestriction(index));
+        restrictionList.appendChild(item);
+      });
+    }
+
+    function shuffle(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function createTeamsByCount(participants, totalTeams) {
+      const shuffled = shuffle(participants);
+      const baseSize = Math.floor(shuffled.length / totalTeams);
+      const remainder = shuffled.length % totalTeams;
+      const teams = [];
+      let cursor = 0;
+
+      for (let i = 0; i < totalTeams; i += 1) {
+        const size = baseSize + (i < remainder ? 1 : 0);
+        teams.push(shuffled.slice(cursor, cursor + size));
+        cursor += size;
+      }
+
+      return teams.filter((team) => team.length > 0);
+    }
+
+    function createTeamsBySize(participants, sizeLimit) {
+      const shuffled = shuffle(participants);
+      const teams = [];
+      for (let index = 0; index < shuffled.length; index += sizeLimit) {
+        teams.push(shuffled.slice(index, index + sizeLimit));
+      }
+      return teams.filter((team) => team.length > 0);
+    }
+
+    function createTeamsByCountAndSize(participants, totalTeams, sizeLimit) {
+      const shuffled = shuffle(participants);
+      const minimumTeamsNeeded = Math.ceil(shuffled.length / sizeLimit);
+      if (totalTeams < minimumTeamsNeeded) return null;
+
+      const baseSize = Math.floor(shuffled.length / totalTeams);
+      const remainder = shuffled.length % totalTeams;
+      const teams = [];
+      let cursor = 0;
+
+      for (let i = 0; i < totalTeams; i += 1) {
+        const size = baseSize + (i < remainder ? 1 : 0);
+        if (size > sizeLimit) return null;
+        teams.push(shuffled.slice(cursor, cursor + size));
+        cursor += size;
+      }
+
+      return teams.filter((team) => team.length > 0);
+    }
+
+    function resolveMode(totalParticipants) {
+      const countRaw = teamCount.value.trim();
+      const sizeRaw = teamSize.value.trim();
+      const hasCount = countRaw !== '' && Number(countRaw) > 0;
+      const hasSize = sizeRaw !== '' && Number(sizeRaw) > 0;
+      const countValue = Number(countRaw);
+      const sizeValue = Number(sizeRaw);
+
+      if (!hasCount && !hasSize) return { error: 'Informe a quantidade de equipes ou a quantidade de pessoas por equipe.' };
+      if (hasCount && countValue > totalParticipants) return { error: 'A quantidade de equipes não pode ser maior que a quantidade de participantes.' };
+      if (hasCount && hasSize) return { mode: 'count-and-size', totalTeams: countValue, sizeLimit: sizeValue };
+      if (hasCount) return { mode: 'count', totalTeams: countValue };
+      return { mode: 'size', sizeLimit: sizeValue };
+    }
+
+    function validateRestrictionsAgainstParticipants(participants) {
+      for (const rule of restrictions) {
+        if (!participants.includes(rule.a)) return 'Existe regra com nome que não está mais na lista de participantes.';
+        if (rule.type === 'pair' && !participants.includes(rule.b)) return 'Existe regra com nome que não está mais na lista de participantes.';
+      }
+      return null;
+    }
+
+    function validateConfiguration(participants, resolution) {
+      const soloRules = restrictions.filter((r) => r.type === 'solo');
+      const soloPeople = new Set(soloRules.map((r) => r.a));
+      const teamCountLocal = resolution.mode === 'count' || resolution.mode === 'count-and-size'
+        ? resolution.totalTeams
+        : Math.ceil(participants.length / resolution.sizeLimit);
+
+      if (soloPeople.size > teamCountLocal) return 'Há mais regras de grupo separado do que equipes disponíveis.';
+
+      const potRules = restrictions.filter((r) => r.type === 'pot');
+      const potCountMap = new Map();
+      potRules.forEach((rule) => potCountMap.set(rule.pot, (potCountMap.get(rule.pot) || 0) + 1));
+      for (const [, count] of potCountMap) {
+        if (count > teamCountLocal) return 'Existe um pote com mais participantes do que a quantidade de equipes.';
+      }
+
+      return null;
+    }
+
+    function applyPotDistribution(teams) {
+      const potRules = restrictions.filter((r) => r.type === 'pot');
+      if (!potRules.length) return teams;
+
+      const potMap = new Map();
+      potRules.forEach((rule) => {
+        if (!potMap.has(rule.pot)) potMap.set(rule.pot, []);
+        potMap.get(rule.pot).push(rule.a);
+      });
+
+      const assigned = new Set(potRules.map((r) => r.a));
+      const leftovers = [];
+      const teamCountLocal = teams.length;
+      if (!teamCountLocal) return teams;
+
+      const rebuilt = Array.from({ length: teamCountLocal }, () => []);
+      const orderedPots = Array.from(potMap.keys()).sort((a, b) => a - b);
+
+      for (const pot of orderedPots) {
+        const shuffledPot = shuffle(potMap.get(pot));
+        shuffledPot.forEach((person, index) => rebuilt[index % teamCountLocal].push(person));
+      }
+
+      teams.flat().forEach((person) => {
+        if (!assigned.has(person)) leftovers.push(person);
+      });
+
+      shuffle(leftovers).forEach((person) => {
+        let targetIndex = 0;
+        let targetSize = rebuilt[0].length;
+        for (let i = 1; i < rebuilt.length; i += 1) {
+          if (rebuilt[i].length < targetSize) {
+            targetIndex = i;
+            targetSize = rebuilt[i].length;
+          }
+        }
+        rebuilt[targetIndex].push(person);
+      });
+
+      return rebuilt;
+    }
+
+    function violatesRestrictions(teams) {
+      for (const rule of restrictions) {
+        if (rule.type === 'solo') {
+          const team = teams.find((group) => group.includes(rule.a));
+          if (team && team.length !== 1) return true;
+        }
+
+        if (rule.type === 'pair') {
+          for (const team of teams) {
+            if (team.includes(rule.a) && team.includes(rule.b)) return true;
+          }
+        }
+      }
+
+      const potRules = restrictions.filter((r) => r.type === 'pot');
+      if (potRules.length) {
+        const personToPot = new Map(potRules.map((r) => [r.a, r.pot]));
+        for (const team of teams) {
+          const seenPots = new Set();
+          for (const member of team) {
+            const pot = personToPot.get(member);
+            if (!pot) continue;
+            if (seenPots.has(pot)) return true;
+            seenPots.add(pot);
+          }
+        }
+      }
+
+      return false;
+    }
+
+    function renderTeams(teams = lastTeams) {
+      results.innerHTML = '';
+      if (!teams.length) return;
+
+      teams.forEach((team, index) => {
+        const card = document.createElement('div');
+        card.className = 'team-card';
+        card.innerHTML = `<h3>Equipe ${index + 1}</h3><small>${team.length} participante(s)</small>${team.map((member) => `<div class="member">${escapeHtml(member)}</div>`).join('')}`;
+        results.appendChild(card);
+      });
+    }
+
+    function drawTeams() {
+      clearStatus();
+      const participants = getParticipantList();
+      const attempts = Math.max(100, Number(maxAttempts.value) || 5000);
+
+      if (participants.length < 2) {
+        showStatus('Adicione pelo menos 2 participantes.', 'error');
+        return;
+      }
+
+      updateParticipantSelectors();
+      const restrictionsError = validateRestrictionsAgainstParticipants(participants);
+      if (restrictionsError) {
+        showStatus(restrictionsError, 'error');
+        return;
+      }
+
+      const resolution = resolveMode(participants.length);
+      if (resolution.error) {
+        showStatus(resolution.error, 'error');
+        return;
+      }
+
+      const configError = validateConfiguration(participants, resolution);
+      if (configError) {
+        showStatus(configError, 'error');
+        return;
+      }
+
+      let found = null;
+      for (let i = 0; i < attempts; i += 1) {
+        let teams = null;
+        if (resolution.mode === 'count') teams = createTeamsByCount(participants, resolution.totalTeams);
+        else if (resolution.mode === 'size') teams = createTeamsBySize(participants, resolution.sizeLimit);
+        else teams = createTeamsByCountAndSize(participants, resolution.totalTeams, resolution.sizeLimit);
+
+        if (!teams) continue;
+        teams = applyPotDistribution(teams);
+        if (!violatesRestrictions(teams)) {
+          found = teams;
+          break;
+        }
+      }
+
+      if (!found) {
+        showStatus('Não foi possível gerar equipes com essas regras. Tente ajustar a divisão, aumentar equipes ou remover algumas regras.', 'error');
+        return;
+      }
+
+      lastTeams = found;
+      renderTeams(lastTeams);
+      renderGroupPreview();
+      showStatus('Equipes sorteadas com sucesso.', 'success');
+    }
+
+    function getExportTitle() {
+      return projectName.value.trim() || 'Sorteio de Equipes';
+    }
+
+    function exportToPdf() {
+      if (!lastTeams.length) {
+        showStatus('Faça o sorteio antes de exportar o PDF.', 'error');
+        return;
+      }
+
+      const title = getExportTitle();
+      const teamsHtml = lastTeams.map((team, index) => `
+        <div class="team">
+          <h2>Equipe ${index + 1}</h2>
+          <div class="count">${team.length} participante(s)</div>
+          <ul>${team.map((member) => `<li>${escapeHtml(member)}</li>`).join('')}</ul>
+        </div>
+      `).join('');
+
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentWindow?.document;
+      if (!doc) {
+        document.body.removeChild(iframe);
+        showStatus('Não foi possível preparar a impressão neste ambiente.', 'error');
+        return;
+      }
+
+      const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;color:#111827;margin:32px}
+    h1{margin:0 0 8px}
+    .subtitle{color:#4b5563;margin-bottom:24px}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+    .team{border:1px solid #d1d5db;border-radius:12px;padding:16px;break-inside:avoid}
+    .team h2{margin:0 0 6px;font-size:20px}
+    .count{color:#6b7280;margin-bottom:10px}
+    ul{margin:0;padding-left:20px}
+    li{margin:6px 0}
+    .audio-box {
+      background: linear-gradient(180deg, rgba(99, 102, 241, 0.08), rgba(2, 6, 23, 0.58));
+      border: 1px solid rgba(129, 140, 248, 0.22);
+      border-radius: 18px;
+      padding: 16px;
+    }
+    .sound-card {
+      width: 100%;
+      text-align: left;
+      background: linear-gradient(180deg, rgba(99, 102, 241, 0.12), rgba(15, 23, 42, 0.82));
+      border: 1px solid rgba(129, 140, 248, 0.26);
+      color: var(--text);
+      min-height: 132px;
+    }
+    .sound-card.active {
+      border-color: rgba(34, 197, 94, 0.72);
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.14) inset;
+    }
+    .shortcut-badge {
+      display:inline-flex; align-items:center; justify-content:center;
+      min-width:34px; padding:4px 8px; border-radius:999px;
+      background: rgba(99,102,241,0.18); color:#c7d2fe; font-size:0.78rem;
+      border:1px solid rgba(129,140,248,0.3);
+    }
+    .sound-url {
+      margin-top:8px;
+      font-size:0.8rem;
+      color:var(--muted);
+      word-break: break-all;
+    }
+    .top-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+    .btn-success { background: rgba(34, 197, 94, 0.14); color: #bbf7d0; border: 1px solid rgba(34,197,94,0.35); }
+    .btn-warning { background: rgba(245, 158, 11, 0.14); color: #fde68a; border: 1px solid rgba(245,158,11,0.35); }
+    .mini-note {
+      margin-top:8px; padding:12px 14px; border-radius:14px;
+      background: rgba(99,102,241,0.08); border:1px solid rgba(129,140,248,0.22); color: var(--muted);
+    }
+    .kbd-list { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .kbd-list kbd {
+      border:1px solid var(--border); background: var(--card); color: var(--text);
+      border-radius: 8px; padding: 4px 8px; font-weight:700;
+    }
+    .muted { color: var(--muted); }
+
+  
+    .theme-switch { display: inline-flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; padding: 8px; border: 1px solid var(--border); border-radius: 16px; background: var(--panel-2); box-shadow: var(--shadow); }
+    .theme-btn { border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; font-weight: 800; cursor: pointer; background: var(--card); color: var(--text); }
+    .theme-btn.active { background: linear-gradient(135deg, var(--primary), var(--primary-2)); color: #fff; border-color: transparent; }
+    .wheel-wrap.fullscreen { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; padding: 28px; background: radial-gradient(circle at center, rgba(99,102,241,0.22), rgba(2,6,23,0.98)); border-radius: 0; min-height: 100vh; width: 100vw; }
+    .wheel-wrap.fullscreen .wheel-box { width: min(78vh, 78vw, 760px); }
+    .wheel-wrap.fullscreen #wheel { width: min(78vh, 78vw, 760px); }
+    .wheel-wrap.fullscreen .wheel-result { font-size: clamp(1.4rem, 2.8vw, 2.4rem); max-width: 900px; color: #fff; background: rgba(15,23,42,0.62); border: 1px solid rgba(129,140,248,0.28); }
+    #results.fullscreen-results { position: fixed; inset: 0; z-index: 9999; overflow: auto; padding: 28px; background: linear-gradient(135deg, var(--bg-1), var(--bg-2) 45%, #111827); grid-template-columns: repeat(4, minmax(0, 1fr)); align-content: start; }
+    @media (max-width:1100px){ #results.fullscreen-results { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    @media (max-width:700px){ #results.fullscreen-results { grid-template-columns: 1fr; } }
+    #pomodoroDisplay.fullscreen { position: fixed; inset: 0; z-index: 9999; border-radius: 0; min-height: 100vh; width: 100vw; padding: 40px; display: grid; place-items: center; text-align: center; background: radial-gradient(circle at center, rgba(127,29,29,0.35), rgba(2,6,23,0.98)); }
+    #pomodoroDisplay.fullscreen.break-mode { background: radial-gradient(circle at center, rgba(20,83,45,0.38), rgba(2,6,23,0.98)); }
+    #pomodoroDisplay.work-mode .timer-value, #pomodoroDisplay.work-mode .timer-status { color: #ef4444; }
+    #pomodoroDisplay.break-mode .timer-value, #pomodoroDisplay.break-mode .timer-status { color: #22c55e; }
+    #pomodoroDisplay.fullscreen .timer-value { font-size: min(28vw, 16rem); font-weight: 900; letter-spacing: 4px; }
+    #pomodoroDisplay.fullscreen .timer-status { font-size: clamp(1.5rem, 3vw, 2.6rem); font-weight: 800; margin-top: 16px; }
+    .pomodoro-grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; align-items:end; }
+    .pomodoro-note { margin-top:8px; padding:10px 12px; border-radius:14px; background: rgba(99,102,241,0.08); border:1px solid rgba(129,140,248,0.22); color: var(--muted); }
+    .timer-status { color: var(--muted); margin-top: 12px; font-size: 1rem; }
+
+  
+/* === ANIMAÇÃO FULLSCREEN ROLETA === */
+
+.wheel-wrap.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, #dfe8f8 0%, #cfdcf5 45%, #bccdea 100%);
+  overflow: hidden;
+}
+
+.wheel-wrap.fullscreen::before,
+.wheel-wrap.fullscreen::after {
+  content: "";
+  position: absolute;
+  width: 380px;
+  height: 380px;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.35;
+  animation: pulseGlow 4s ease-in-out infinite;
+}
+
+.wheel-wrap.fullscreen::before {
+  background: rgba(91, 92, 233, 0.35);
+  top: 10%;
+  left: 18%;
+}
+
+.wheel-wrap.fullscreen::after {
+  background: rgba(34, 197, 94, 0.22);
+  right: 18%;
+  bottom: 10%;
+  animation-delay: 2s;
+}
+
+@keyframes pulseGlow {
+  0%,100% { transform: scale(1) translateY(0); opacity:0.28; }
+  50% { transform: scale(1.12) translateY(10px); opacity:0.5; }
+}
+
+/* === POPUP DO SORTEADO === */
+
+.winner-banner {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15,23,42,0.48);
+  backdrop-filter: blur(6px);
+}
+
+.winner-banner.show { display:flex; }
+
+.winner-card{
+  position:relative;
+  z-index:20001;
+  width:min(900px,92vw);
+  background:#ffffff;
+  border:1px solid #c9d6ee;
+  border-radius:24px;
+  padding:32px;
+  text-align:center;
+  box-shadow:0 24px 80px rgba(15,23,42,0.28);
+  animation: popupWinner .45s ease;
+}
+
+.winner-name{
+  font-size: clamp(2.4rem,6vw,4.5rem);
+  font-weight:900;
+  color:#1f2a44;
+  animation: winnerZoom .55s ease;
+}
+
+.winner-sub{
+  margin-top:12px;
+  font-size: clamp(1rem,2vw,1.4rem);
+  color:#60708c;
+}
+
+@keyframes popupWinner{
+  0%{ transform:scale(.82); opacity:0 }
+  100%{ transform:scale(1); opacity:1 }
+}
+
+@keyframes winnerZoom{
+  0%{ transform:scale(.8); opacity:0; letter-spacing:.08em }
+  100%{ transform:scale(1); opacity:1; letter-spacing:0 }
+}
+
+/* === CONFETTI === */
+
+.confetti-layer{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  overflow:hidden;
+  z-index:19999;
+}
+
+.confetti-piece{
+  position:absolute;
+  top:-20px;
+  width:10px;
+  height:18px;
+  border-radius:3px;
+  animation:confettiFall linear forwards;
+}
+
+@keyframes confettiFall{
+  from{
+    transform:translate3d(0,-20px,0) rotate(0deg);
+    opacity:1;
+  }
+  to{
+    transform:translate3d(var(--dx),105vh,0) rotate(720deg);
+    opacity:.1;
+  }
+}
+
+
+    .wheel-wrap.fullscreen .winner-banner,
+    .wheel-wrap.fullscreen .confetti-layer {
+      position: absolute !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .wheel-wrap.fullscreen .winner-banner {
+      z-index: 25000 !important;
+    }
+
+    .wheel-wrap.fullscreen .confetti-layer {
+      z-index: 26000 !important;
+    }
+
+</style>
+
+<style>
+/* Override fullscreen wheel controls to right side */
+#wheelFullscreenPanel,
+.wheel-fullscreen-panel,
+.fullscreen-wheel-controls{
+position:fixed !important;
+right:20px !important;
+left:auto !important;
+top:50% !important;
+transform:translateY(-50%) !important;
+width:auto !important;
+background:rgba(30,40,70,.55) !important;
+backdrop-filter:blur(6px);
+display:flex;
+flex-direction:column;
+gap:8px;
+align-items:flex-end;
+padding:10px;
+border-radius:12px;
+}
+
+#wheelFullscreenPanel button,
+.wheel-fullscreen-panel button,
+.fullscreen-wheel-controls button{
+font-size:12px !important;
+padding:6px 10px !important;
+min-width:160px;
+}
+</style>
+
+
+<style>
+/* v19: posiciona os botões da roleta em tela cheia na lateral direita */
+#wheelFullscreenActions,
+.wheel-fullscreen-actions{
+  position: fixed !important;
+  top: 140px !important;
+  right: 36px !important;
+  left: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  width: 290px !important;
+  max-width: calc(100vw - 80px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  padding: 14px !important;
+  border-radius: 18px !important;
+  background: rgba(29, 39, 67, 0.22) !important;
+  backdrop-filter: blur(6px) !important;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18) !important;
+  z-index: 9999 !important;
+}
+
+#wheelFullscreenActions button,
+.wheel-fullscreen-actions button{
+  width: 100% !important;
+  min-width: 0 !important;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+  white-space: normal !important;
+}
+
+@media (max-width: 1100px){
+  #wheelFullscreenActions,
+  .wheel-fullscreen-actions{
+    top: auto !important;
+    right: 16px !important;
+    bottom: 16px !important;
+    width: 240px !important;
+  }
+}
+</style>
+
+
+<style>
+/* painel lateral da roleta aparece somente em tela cheia */
+.wheel-fullscreen-actions{
+display:none !important;
+}
+
+.fullscreen .wheel-fullscreen-actions{
+display:flex !important;
+}
+</style>
+
+
+<style>
+/* v22: painel lateral da roleta só aparece quando .wheel-wrap estiver em tela cheia */
+.wheel-wrap #wheelFullscreenActions,
+.wheel-wrap .wheel-fullscreen-actions{
+  display: none !important;
+}
+
+.wheel-wrap.fullscreen #wheelFullscreenActions,
+.wheel-wrap.fullscreen .wheel-fullscreen-actions{
+  display: flex !important;
+}
+</style>
+
+</head>
+<body>
+  <h1>${escapeHtml(title)}</h1>
+  <div class="subtitle">Exportado em ${new Date().toLocaleString('pt-BR')}</div>
+  <div class="grid">${teamsHtml}</div>
+</body>
+</html>`;
+
+      try {
+        doc.open();
+        doc.write(html);
+        doc.close();
+        setTimeout(() => {
+          try {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+          } catch (error) {
+            showStatus('Não foi possível abrir a impressão neste ambiente.', 'error');
+          } finally {
+            setTimeout(() => {
+              if (document.body.contains(iframe)) document.body.removeChild(iframe);
+            }, 500);
+          }
+        }, 150);
+      } catch (error) {
+        if (document.body.contains(iframe)) document.body.removeChild(iframe);
+        showStatus('Falha ao preparar o PDF para impressão.', 'error');
+      }
+    }
+
+    function exportToExcel() {
+      if (!lastTeams.length) {
+        showStatus('Faça o sorteio antes de exportar o Excel.', 'error');
+        return;
+      }
+
+      const title = getExportTitle();
+      const maxMembers = Math.max(...lastTeams.map((team) => team.length));
+      const headers = ['Equipe'];
+      for (let i = 1; i <= maxMembers; i += 1) headers.push(`Participante ${i}`);
+
+      const rows = lastTeams.map((team, index) => {
+        const row = [`Equipe ${index + 1}`];
+        for (let i = 0; i < maxMembers; i += 1) row.push(team[i] || '');
+        return row;
+      });
+
+      const csvContent = [headers, ...rows]
+        .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(';'))
+        .join('\n');
+
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${title.replace(/[^a-z0-9à-ú_-]/gi, '_')}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    function exportRulesToFile() {
+      const payload = { version: 1, exportedAt: new Date().toISOString(), restrictions };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `regras_sorteio_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showStatus('Regras exportadas com sucesso.', 'success');
+    }
+
+    function normalizeImportedRestrictions(rawRestrictions) {
+      if (!Array.isArray(rawRestrictions)) throw new Error('Formato inválido');
+      const normalized = [];
+
+      for (const rule of rawRestrictions) {
+        if (!rule || typeof rule !== 'object' || typeof rule.type !== 'string') continue;
+
+        if (rule.type === 'solo' && typeof rule.a === 'string' && rule.a.trim()) {
+          normalized.push({ type: 'solo', a: rule.a.trim() });
+          continue;
+        }
+
+        if (rule.type === 'pair' && typeof rule.a === 'string' && typeof rule.b === 'string') {
+          const a = rule.a.trim();
+          const b = rule.b.trim();
+          if (!a || !b || a === b) continue;
+          const [first, second] = normalizePair(a, b);
+          normalized.push({ type: 'pair', a: first, b: second });
+          continue;
+        }
+
+        if (rule.type === 'pot' && typeof rule.a === 'string') {
+          const a = rule.a.trim();
+          const pot = Number(rule.pot);
+          if (!a || !Number.isInteger(pot) || pot < 1 || pot > 10) continue;
+          normalized.push({ type: 'pot', a, pot });
+        }
+      }
+
+      return normalized;
+    }
+
+    async function importRulesFromFile(file) {
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        restrictions = normalizeImportedRestrictions(parsed.restrictions ?? parsed);
+        renderRestrictions();
+        showStatus('Regras importadas com sucesso.', 'success');
+      } catch (error) {
+        showStatus('Falha ao importar regras. Verifique se o arquivo JSON está válido.', 'error');
+      } finally {
+        importRulesFile.value = '';
+      }
+    }
+
+    function saveData() {
+      const data = {
+        projectName: projectName.value,
+        names: names.value,
+        teamCount: teamCount.value || '8',
+        teamSize: teamSize.value,
+        maxAttempts: maxAttempts.value,
+        restrictions,
+        savedAt: new Date().toLocaleString('pt-BR'),
+        lastTeams
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      savedInfo.textContent = `Salvo localmente em ${data.savedAt}.`;
+      showStatus('Configuração salva no navegador.', 'success');
+    }
+
+    function loadData() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        showStatus('Nenhuma configuração salva foi encontrada neste navegador.', 'error');
+        return;
+      }
+
+      const data = JSON.parse(raw);
+      projectName.value = data.projectName || '';
+      names.value = data.names || '';
+      teamCount.value = data.teamCount || 8;
+      teamSize.value = data.teamSize ?? '';
+      maxAttempts.value = data.maxAttempts || 5000;
+      restrictions = Array.isArray(data.restrictions) ? data.restrictions : [];
+      lastTeams = Array.isArray(data.lastTeams) ? data.lastTeams : [];
+      updateParticipantSelectors();
+      updateRestrictionUi();
+      renderRestrictions();
+      renderTeams(lastTeams);
+      renderGroupPreview();
+      savedInfo.textContent = data.savedAt ? `Salvo localmente em ${data.savedAt}.` : 'Configuração carregada.';
+      showStatus('Configuração carregada com sucesso.', 'success');
+    }
+
+    function openRestrictions() {
+      updateParticipantSelectors();
+      updateRestrictionUi();
+      restrictionDrawer.classList.add('show');
+      drawerOverlay.classList.add('show');
+    }
+
+    function closeRestrictions() {
+      restrictionDrawer.classList.remove('show');
+      drawerOverlay.classList.remove('show');
+    }
+
+    function clearAllData() {
+      if (!confirm('Deseja limpar os campos e apagar o conteúdo salvo no navegador?')) return;
+
+      projectName.value = '';
+      names.value = '';
+      teamCount.value = 8;
+      teamSize.value = '';
+      maxAttempts.value = 5000;
+      restrictions = [];
+      lastTeams = [];
+      wheelItems = [];
+      forcedNextSelection = { individual: '', group: '' };
+      stopWheelIdle();
+      results.innerHTML = '';
+      wheelResult.textContent = 'Selecione o modo e carregue a roleta.';
+      hideWinnerPopup();
+      localStorage.removeItem(STORAGE_KEY);
+      updateParticipantSelectors();
+      updateRestrictionUi();
+      renderRestrictions();
+      renderGroupPreview();
+      updateForcedSelectionInfo();
+      drawWheel([], 0);
+      savedInfo.textContent = 'Nada salvo ainda.';
+      showStatus('Dados limpos com sucesso.', 'success');
+    }
+
+    function setActiveTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tabId));
+      document.querySelectorAll('.tab-content').forEach((tab) => tab.classList.toggle('active', tab.id === tabId));
+      if (tabId === 'tab-sorteio') renderTeams(lastTeams);
+      if (tabId === 'tab-roleta') {
+        renderGroupPreview();
+        if (wheelItems.length && !isSpinning) startWheelIdle();
+      } else {
+        stopWheelIdle();
+      }
+    }
+
+    function fitText(text, max) {
+      const str = String(text ?? '');
+      return str.length > max ? str.slice(0, max - 1) + '…' : str;
+    }
+
+    function renderGroupPreview(highlightValue = null) {
+      groupPreviewList.innerHTML = '';
+      if (!lastTeams.length) {
+        groupPreviewList.innerHTML = '<div class="hint">Faça o sorteio e carregue a roleta para visualizar as equipes aqui.</div>';
+        return;
+      }
+
+      const previewValue = previewMode ? previewMode.value : 'group';
+      const wheelLoaded = wheelItems.length > 0;
+
+      if (previewValue === 'individual') {
+        const allStudents = lastTeams.flat();
+        const availableStudents = new Set(wheelMode.value !== 'individual' || !wheelLoaded ? allStudents : wheelItems);
+        allStudents.forEach((student) => {
+          const available = availableStudents.has(student);
+          const item = document.createElement('div');
+          item.className = `team-preview-item${highlightValue === student ? ' active' : ''}`;
+          item.style.opacity = available ? '1' : '0.72';
+          const tag = wheelLoaded
+            ? (available ? '<span class="status-tag available">Na roleta</span>' : '<span class="status-tag removed">Removido</span>')
+            : '<span class="status-tag pending">Não carregado</span>';
+          item.innerHTML = `
+            <div class="team-preview-title"><span>${escapeHtml(student)}</span></div>
+            <div class="team-preview-members">Participante disponível para sorteio individual.</div>
+            <div class="team-preview-tags">${tag}</div>
+          `;
+          groupPreviewList.appendChild(item);
+        });
+        return;
+      }
+
+      const availableGroups = new Set(wheelItems.filter((item) => /^Equipe \d+$/.test(item)).map((item) => Number(item.replace('Equipe ', '')) - 1));
+      lastTeams.forEach((team, index) => {
+        const available = wheelMode.value !== 'group' || !wheelLoaded || availableGroups.has(index);
+        const item = document.createElement('div');
+        item.className = `team-preview-item${highlightValue === index ? ' active' : ''}`;
+        item.style.opacity = available ? '1' : '0.72';
+        const tag = wheelLoaded
+          ? (available ? '<span class="status-tag available">Na roleta</span>' : '<span class="status-tag removed">Removida</span>')
+          : '<span class="status-tag pending">Não carregada</span>';
+        item.innerHTML = `
+          <div class="team-preview-title">
+            <span>Equipe ${index + 1}</span>
+            <span class="team-chip">${team.length} participante(s)</span>
+          </div>
+          <div class="team-preview-members">${team.map(escapeHtml).join(', ')}</div>
+          <div class="team-preview-tags">${tag}</div>
+        `;
+        groupPreviewList.appendChild(item);
+      });
+    }
+
+    function getConfigCandidates(mode) {
+      if (!lastTeams.length) return [];
+      if (mode === 'group') {
+        const availableGroups = new Set(wheelItems.filter((item) => /^Equipe \d+$/.test(item)).map((item) => Number(item.replace('Equipe ', '')) - 1));
+        return lastTeams.map((team, index) => ({
+          value: `Equipe ${index + 1}`,
+          label: `Equipe ${index + 1}`,
+          desc: team.join(', '),
+          disabled: wheelMode.value === 'group' && wheelItems.length > 0 ? !availableGroups.has(index) : false
+        }));
+      }
+      const allStudents = lastTeams.flat();
+      const availableStudents = new Set(wheelMode.value === 'individual' && wheelItems.length > 0 ? wheelItems : allStudents);
+      return allStudents.map((student) => ({
+        value: student,
+        label: student,
+        desc: 'Participante do sorteio individual',
+        disabled: wheelMode.value === 'individual' && wheelItems.length > 0 ? !availableStudents.has(student) : false
+      }));
+    }
+
+    function updateForcedSelectionInfo() {
+      const groupText = forcedNextSelection.group ? `Grupo: ${forcedNextSelection.group}` : 'Grupo: aleatório';
+      const individualText = forcedNextSelection.individual ? `Individual: ${forcedNextSelection.individual}` : 'Individual: aleatório';
+      forcedSelectionInfo.textContent = `${individualText} | ${groupText}`;
+    }
+
+    function renderCandidateList() {
+      const mode = configTargetMode.value;
+      const filter = (candidateFilter.value || '').trim().toLowerCase();
+      const selectedValue = forcedNextSelection[mode] || '';
+      const candidates = getConfigCandidates(mode).filter((item) => !filter || item.label.toLowerCase().includes(filter) || item.desc.toLowerCase().includes(filter));
+      let html = `
+        <label class="candidate-item">
+          <input type="radio" name="forcedCandidate" value="" ${selectedValue === '' ? 'checked' : ''}>
+          <div>
+            <div class="candidate-title">Aleatório</div>
+            <div class="candidate-desc">Nenhuma escolha fixa. O próximo sorteio será realmente aleatório.</div>
+          </div>
+        </label>
+      `;
+      if (!candidates.length) {
+        html += '<div class="hint">Nenhum item encontrado para o filtro informado.</div>';
+      } else {
+        html += candidates.map((item) => `
+          <label class="candidate-item${item.disabled ? ' disabled' : ''}">
+            <input type="radio" name="forcedCandidate" value="${escapeHtml(item.value)}" ${selectedValue === item.value ? 'checked' : ''} ${item.disabled ? 'disabled' : ''}>
+            <div>
+              <div class="candidate-title">${escapeHtml(item.label)}</div>
+              <div class="candidate-desc">${escapeHtml(item.desc)}${item.disabled ? ' — já removido da roleta' : ''}</div>
+            </div>
+          </label>
+        `).join('');
+      }
+      candidateList.innerHTML = html;
+      updateForcedSelectionInfo();
+    }
+
+    function openWheelConfig() {
+      configTargetMode.value = wheelMode.value;
+      candidateFilter.value = '';
+      renderCandidateList();
+      wheelConfigModal.classList.add('show');
+      wheelConfigModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeWheelConfig() {
+      wheelConfigModal.classList.remove('show');
+      wheelConfigModal.setAttribute('aria-hidden', 'true');
+    }
+
+    function syncWheelOverlayHost() {
+      const wheelIsFullscreen = !!document.fullscreenElement && document.fullscreenElement === wheelWrap;
+      const targetHost = wheelIsFullscreen ? wheelWrap : winnerOriginalParent;
+
+      if (confettiLayer.parentElement !== targetHost) targetHost.appendChild(confettiLayer);
+      if (winnerBanner.parentElement !== targetHost) targetHost.appendChild(winnerBanner);
+
+      if (wheelIsFullscreen) {
+        winnerBanner.classList.add('fullscreen-highlight');
+      } else {
+        winnerBanner.classList.remove('fullscreen-highlight');
+      }
+    }
+
+    function restoreWheelOverlayHost() {
+      if (confettiLayer.parentElement !== confettiOriginalParent) confettiOriginalParent.appendChild(confettiLayer);
+      if (winnerBanner.parentElement !== winnerOriginalParent) winnerOriginalParent.appendChild(winnerBanner);
+      winnerBanner.classList.remove('fullscreen-highlight');
+    }
+
+    function hideWinnerPopup() {
+      winnerBanner.classList.remove('show', 'roleta-ativa', 'fullscreen-highlight');
+      confettiLayer.classList.remove('roleta-ativa');
+      winnerBanner.style.display = '';
+      winnerName.textContent = '';
+      winnerSub.textContent = '';
+      document.body.style.overflow = '';
+      restoreWheelOverlayHost();
+    }
+
+    function showWinnerPopup(title, subtitle = '') {
+      const wheelIsFullscreen = !!document.fullscreenElement && document.fullscreenElement === wheelWrap;
+      syncWheelOverlayHost();
+      winnerName.textContent = title;
+      winnerSub.textContent = subtitle;
+      winnerBanner.classList.remove('show', 'roleta-ativa', 'fullscreen-highlight');
+      confettiLayer.classList.remove('roleta-ativa');
+      void winnerBanner.offsetWidth;
+      document.body.style.overflow = 'hidden';
+      winnerBanner.style.display = 'flex';
+      winnerBanner.classList.add('show', 'roleta-ativa');
+      confettiLayer.classList.add('roleta-ativa');
+      if (wheelIsFullscreen) {
+        winnerBanner.classList.add('fullscreen-highlight');
+      }
+      launchConfetti(wheelIsFullscreen ? 180 : 140, wheelIsFullscreen ? 7600 : 6200);
+    }
+
+
+    function removeLastWheelWinner() {
+      if (!lastWheelWinner || !wheelItems.length) {
+        hideWinnerPopup();
+        return;
+      }
+
+      if (wheelMode.value === 'group') {
+        wheelItems = wheelItems.filter((_, index) => index !== lastWheelWinner.index);
+        renderGroupPreview();
+      } else {
+        wheelItems = wheelItems.filter((_, index) => index !== lastWheelWinner.index);
+      }
+
+      if (!wheelItems.length) {
+        wheelResult.textContent = 'Todos os itens já foram removidos da roleta.';
+        drawWheel([], 0);
+        stopWheelIdle();
+      } else {
+        wheelResult.textContent = `${lastWheelWinner.label} removido(a) da roleta.`;
+        wheelRotation = 0;
+        drawWheel(wheelItems, wheelRotation);
+        startWheelIdle();
+      }
+
+      hideWinnerPopup();
+      lastWheelWinner = null;
+    }
+
+    function launchConfetti(totalPieces = 140, clearAfter = 6200) {
+      confettiLayer.innerHTML = '';
+      const colors = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'];
+      for (let i = 0; i < totalPieces; i += 1) {
+        const piece = document.createElement('span');
+        piece.className = 'confetti-piece';
+        piece.style.left = `${Math.random() * 100}vw`;
+        piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.setProperty('--dx', `${(Math.random() - 0.5) * 320}px`);
+        piece.style.animationDuration = `${2.8 + Math.random() * 2.4}s`;
+        piece.style.animationDelay = `${Math.random() * 0.65}s`;
+        piece.style.width = `${8 + Math.random() * 8}px`;
+        piece.style.height = `${12 + Math.random() * 12}px`;
+        piece.style.opacity = `${0.85 + Math.random() * 0.15}`;
+        confettiLayer.appendChild(piece);
+      }
+      setTimeout(() => {
+        confettiLayer.innerHTML = '';
+        confettiLayer.classList.remove('roleta-ativa');
+      }, clearAfter);
+    }
+
+    function drawWheel(items, rotation = 0) {
+      ctx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
+      const radius = wheelCanvas.width / 2;
+      ctx.save();
+      ctx.translate(radius, radius);
+
+      if (!items.length) {
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Sem itens na roleta', 0, 0);
+        ctx.restore();
+        return;
+      }
+
+      const angle = (Math.PI * 2) / items.length;
+      ctx.rotate(rotation);
+
+      items.forEach((item, i) => {
+        const start = i * angle;
+        const end = start + angle;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius - 10, start, end);
+        ctx.closePath();
+        ctx.fillStyle = WHEEL_COLORS[i % WHEEL_COLORS.length];
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.rotate(start + angle / 2);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#ffffff';
+        const fontSize = wheelMode.value === 'group'
+          ? Math.max(13, Math.min(20, 420 / items.length))
+          : Math.max(12, Math.min(18, 320 / items.length));
+        ctx.font = `${fontSize}px Arial`;
+        ctx.fillText(fitText(item, wheelMode.value === 'group' ? 12 : 18), radius - 28, 6);
+        ctx.restore();
+      });
+
+      ctx.restore();
+      ctx.beginPath();
+      ctx.arc(radius, radius, 30, 0, Math.PI * 2);
+      ctx.fillStyle = '#0f172a';
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    }
+
+    function stopWheelIdle() {
+      if (wheelIdleAnimationId) {
+        cancelAnimationFrame(wheelIdleAnimationId);
+        wheelIdleAnimationId = null;
+      }
+    }
+
+    function startWheelIdle() {
+      stopWheelIdle();
+      if (!wheelItems.length || isSpinning) return;
+      let lastTime = performance.now();
+
+      function idle(now) {
+        if (isSpinning || !wheelItems.length) {
+          wheelIdleAnimationId = null;
+          return;
+        }
+        const delta = now - lastTime;
+        lastTime = now;
+        wheelRotation = (wheelRotation + delta * 0.00035) % (Math.PI * 2);
+        drawWheel(wheelItems, wheelRotation);
+        wheelIdleAnimationId = requestAnimationFrame(idle);
+      }
+
+      wheelIdleAnimationId = requestAnimationFrame(idle);
+    }
+
+    function loadWheel() {
+      if (!lastTeams.length) {
+        wheelResult.textContent = 'Faça o sorteio das equipes antes de carregar a roleta.';
+        return;
+      }
+
+      wheelItems = wheelMode.value === 'group'
+        ? lastTeams.map((_, i) => `Equipe ${i + 1}`)
+        : lastTeams.flat();
+
+      wheelResult.textContent = wheelMode.value === 'group'
+        ? 'Roleta carregada por equipe.'
+        : 'Roleta carregada no modo individual.';
+
+      wheelRotation = 0;
+      renderGroupPreview();
+      drawWheel(wheelItems, wheelRotation);
+      startWheelIdle();
+    }
+
+
+    function setWheelSpinSoundButtonsState(active) {
+      const normalText = active ? 'Preparando sorteio...' : 'Girar roleta com som';
+      if (spinWithSoundBtn) {
+        spinWithSoundBtn.disabled = active;
+        spinWithSoundBtn.textContent = normalText;
+      }
+      if (wheelSpinWithSoundFullscreenBtn) {
+        wheelSpinWithSoundFullscreenBtn.disabled = active;
+        wheelSpinWithSoundFullscreenBtn.textContent = normalText;
+      }
+      if (spinNowBtn) spinNowBtn.disabled = active;
+      if (wheelSpinFullscreenBtn) wheelSpinFullscreenBtn.disabled = active;
+      if (stopWheelSoundBtn) stopWheelSoundBtn.disabled = !active && !wheelSoundSpinAudio;
+      if (wheelStopSoundFullscreenBtn) wheelStopSoundFullscreenBtn.disabled = !active && !wheelSoundSpinAudio;
+    }
+
+    function updateWheelStopMusicButtonsState() {
+      const canStop = !!wheelSoundSpinAudio;
+      if (stopWheelSoundBtn) stopWheelSoundBtn.disabled = !canStop;
+      if (wheelStopSoundFullscreenBtn) wheelStopSoundFullscreenBtn.disabled = !canStop;
+    }
+
+    function startWheelWarmupSpin() {
+      if (wheelWarmupAnimationId) cancelAnimationFrame(wheelWarmupAnimationId);
+      wheelWarmupLastTime = 0;
+      function animate(now) {
+        if (!wheelSoundSpinPending || isSpinning || !wheelItems.length) {
+          wheelWarmupAnimationId = null;
+          return;
+        }
+        if (!wheelWarmupLastTime) wheelWarmupLastTime = now;
+        const delta = now - wheelWarmupLastTime;
+        wheelWarmupLastTime = now;
+        wheelRotation = (wheelRotation + delta * 0.0012) % (Math.PI * 2);
+        drawWheel(wheelItems, wheelRotation);
+        wheelWarmupAnimationId = requestAnimationFrame(animate);
+      }
+      wheelWarmupAnimationId = requestAnimationFrame(animate);
+    }
+
+    function stopWheelWarmupSpin() {
+      if (wheelWarmupAnimationId) {
+        cancelAnimationFrame(wheelWarmupAnimationId);
+        wheelWarmupAnimationId = null;
+      }
+      wheelWarmupLastTime = 0;
+    }
+
+    function stopWheelSoundPlayback(resetAudio = true) {
+      if (wheelSoundSpinAudio) {
+        try {
+          wheelSoundSpinAudio.pause();
+          if (resetAudio) wheelSoundSpinAudio.currentTime = 0;
+        } catch (e) {}
+        wheelSoundSpinAudio = null;
+      }
+      updateWheelStopMusicButtonsState();
+      setWheelSpinSoundButtonsState(wheelSoundSpinPending);
+    }
+
+    function stopSpinWheelWithSound(resetMessage = false, stopAudio = true) {
+      if (wheelSoundSpinTimeout) {
+        clearTimeout(wheelSoundSpinTimeout);
+        wheelSoundSpinTimeout = null;
+      }
+      wheelSoundSpinPending = false;
+      stopWheelWarmupSpin();
+      if (stopAudio) stopWheelSoundPlayback(true);
+      setWheelSpinSoundButtonsState(false);
+      if (resetMessage && wheelItems.length && !isSpinning) {
+        wheelResult.textContent = 'Roleta pronta para girar.';
+      }
+    }
+
+    function spinWheelWithSound() {
+      if (!wheelItems.length) {
+        wheelResult.textContent = 'Selecione o modo e clique em carregar na roleta.';
+        return;
+      }
+      if (isSpinning || wheelSoundSpinPending) return;
+      hideWinnerPopup();
+      stopWheelIdle();
+      wheelSoundSpinPending = true;
+      setWheelSpinSoundButtonsState(true);
+      wheelResult.textContent = 'Tocando vinheta... a roleta está girando devagar e vai acelerar para o sorteio em 10 segundos.';
+      try {
+        stopWheelSoundPlayback(true);
+        wheelSoundSpinAudio = new Audio(WHEEL_SOUND_SPIN_URL);
+        wheelSoundSpinAudio.preload = 'auto';
+        wheelSoundSpinAudio.currentTime = 0;
+        wheelSoundSpinAudio.play().catch(() => {
+          showStatus('Não foi possível tocar a vinheta da roleta.', 'error');
+        });
+      } catch (e) {
+        showStatus('Não foi possível iniciar a vinheta da roleta.', 'error');
+      }
+      updateWheelStopMusicButtonsState();
+      startWheelWarmupSpin();
+      wheelSoundSpinTimeout = setTimeout(() => {
+        wheelSoundSpinPending = false;
+        stopWheelWarmupSpin();
+        setWheelSpinSoundButtonsState(false);
+        spinWheel();
+      }, WHEEL_SOUND_SPIN_DELAY);
+    }
+
+    function spinWheel() {
+      if (wheelSoundSpinPending) stopSpinWheelWithSound(false);
+      if (!wheelItems.length) {
+        wheelResult.textContent = 'Selecione o modo e clique em carregar na roleta.';
+        return;
+      }
+
+      isSpinning = true;
+      stopWheelIdle();
+
+      const anglePerItem = (Math.PI * 2) / wheelItems.length;
+      let selectedIndex;
+      const forcedValue = forcedNextSelection[wheelMode.value];
+      if (forcedValue) {
+        const forcedIndex = wheelItems.findIndex((item) => item === forcedValue);
+        selectedIndex = forcedIndex >= 0 ? forcedIndex : Math.floor(Math.random() * wheelItems.length);
+      } else {
+        selectedIndex = Math.floor(Math.random() * wheelItems.length);
+      }
+      const extraTurns = 6;
+      const centerOffset = anglePerItem / 2;
+      const finalNormalized = (Math.PI * 1.5) - (selectedIndex * anglePerItem + centerOffset);
+      const currentNormalized = wheelRotation % (Math.PI * 2);
+      const targetRotation = wheelRotation + (Math.PI * 2 * extraTurns) + ((finalNormalized - currentNormalized + Math.PI * 4) % (Math.PI * 2));
+      const duration = 3600;
+      const start = performance.now();
+      const initial = wheelRotation;
+
+      function animate(now) {
+        const progress = Math.min((now - start) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        wheelRotation = initial + (targetRotation - initial) * eased;
+        drawWheel(wheelItems, wheelRotation);
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          isSpinning = false;
+          wheelRotation = targetRotation % (Math.PI * 2);
+          drawWheel(wheelItems, wheelRotation);
+          if (wheelMode.value === 'group') {
+            const members = lastTeams[selectedIndex].join(', ');
+            lastWheelWinner = { index: selectedIndex, label: `Equipe ${selectedIndex + 1}` };
+            renderGroupPreview(selectedIndex);
+            wheelResult.textContent = `Sorteado: Equipe ${selectedIndex + 1} — ${members}`;
+            showWinnerPopup(`Equipe ${selectedIndex + 1}`, members);
+            forcedNextSelection.group = '';
+          } else {
+            const student = wheelItems[selectedIndex];
+            lastWheelWinner = { index: selectedIndex, label: student };
+            renderGroupPreview(student);
+            wheelResult.textContent = `Sorteado: ${student}`;
+            showWinnerPopup(student, 'Aluno sorteado na roleta');
+            forcedNextSelection.individual = '';
+          }
+          updateForcedSelectionInfo();
+          startWheelIdle();
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    function formatTime(totalSeconds) {
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function syncTimerFromInputs() {
+      const mins = Math.max(0, Number(timerMinutes.value) || 0);
+      const secs = Math.max(0, Math.min(59, Number(timerSeconds.value) || 0));
+      timerRemaining = mins * 60 + secs;
+      timerValue.textContent = formatTime(timerRemaining);
+    }
+
+    function startTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+      if (timerRemaining <= 0) syncTimerFromInputs();
+      timerLabel.textContent = 'Contagem em andamento';
+      timerInterval = setInterval(() => {
+        if (timerRemaining <= 0) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+          timerValue.textContent = '00:00';
+          timerLabel.textContent = 'Tempo encerrado';
+          return;
+        }
+        timerRemaining -= 1;
+        timerValue.textContent = formatTime(timerRemaining);
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        timerLabel.textContent = 'Timer pausado';
+      }
+    }
+
+    function resetTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      syncTimerFromInputs();
+      timerLabel.textContent = 'Pronto para iniciar';
+    }
+
+    function setThemeMode(mode) {
+      const isDark = mode === 'dark';
+      document.body.classList.toggle('dark', isDark);
+      localStorage.setItem('sorteador-theme', isDark ? 'dark' : 'light');
+      if (themeLightBtn) themeLightBtn.classList.toggle('active', !isDark);
+      if (themeDarkBtn) themeDarkBtn.classList.toggle('active', isDark);
+    }
+
+    function applySavedTheme() {
+      const savedTheme = localStorage.getItem('sorteador-theme') || 'light';
+      setThemeMode(savedTheme);
+    }
+
+    let pomodoroInterval = null;
+    let wheelSoundSpinTimeout = null;
+    let wheelSoundSpinAudio = null;
+    let wheelSoundSpinPending = false;
+    let wheelWarmupAnimationId = null;
+    let wheelWarmupLastTime = 0;
+    const WHEEL_SOUND_SPIN_URL = 'https://www.myinstants.com/media/sounds/piao-do-bau-com-musica.mp3';
+    const WHEEL_SOUND_SPIN_DELAY = 11000;
+    let pomodoroSeconds = 25 * 60;
+    let pomodoroMode = 'work';
+
+    function updatePomodoroVisual() {
+      if (!pomodoroDisplay) return;
+      pomodoroDisplay.classList.toggle('work-mode', pomodoroMode === 'work');
+      pomodoroDisplay.classList.toggle('break-mode', pomodoroMode === 'break');
+    }
+
+    function updatePomodoroDisplay() {
+      const m = Math.floor(pomodoroSeconds / 60).toString().padStart(2, '0');
+      const s = (pomodoroSeconds % 60).toString().padStart(2, '0');
+      if (pomodoroTimeEl) pomodoroTimeEl.textContent = `${m}:${s}`;
+      if (pomodoroStatusEl) pomodoroStatusEl.textContent = pomodoroMode === 'work' ? 'Atividade' : 'Descanso';
+      updatePomodoroVisual();
+    }
+
+    function beepFallback() {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const start = ctx.currentTime;
+      [880, 1174, 880].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, start + i * 0.22);
+        gain.gain.exponentialRampToValueAtTime(0.08, start + i * 0.22 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + i * 0.22 + 0.18);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start + i * 0.22);
+        osc.stop(start + i * 0.22 + 0.2);
+      });
+    }
+
+    function playPomodoroAlarm() {
+      if (!pomodoroAlarmEnabledInput || !pomodoroAlarmEnabledInput.checked) return;
+      const url = String(pomodoroAlarmUrlInput?.value || '').trim();
+      if (url) {
+        try {
+          const alarm = new Audio(url);
+          alarm.play().catch(() => beepFallback());
+          return;
+        } catch (e) {}
+      }
+      beepFallback();
+    }
+
+    function startPomodoro() {
+      if (pomodoroInterval) return;
+      pomodoroInterval = setInterval(() => {
+        pomodoroSeconds -= 1;
+        if (pomodoroSeconds <= 0) {
+          playPomodoroAlarm();
+          if (pomodoroMode === 'work') {
+            pomodoroMode = 'break';
+            pomodoroSeconds = Number(pomodoroBreakInput?.value || 5) * 60;
+          } else {
+            pomodoroMode = 'work';
+            pomodoroSeconds = Number(pomodoroWorkInput?.value || 25) * 60;
+          }
+        }
+        updatePomodoroDisplay();
+      }, 1000);
+    }
+
+    function pausePomodoro() {
+      if (pomodoroInterval) {
+        clearInterval(pomodoroInterval);
+        pomodoroInterval = null;
+      }
+    }
+
+    function resetPomodoro() {
+      pausePomodoro();
+      pomodoroMode = 'work';
+      pomodoroSeconds = Number(pomodoroWorkInput?.value || 25) * 60;
+      updatePomodoroDisplay();
+    }
+
+
+    async function forceFullscreen(element, button) {
+      if (!element) return;
+      try {
+        if (document.fullscreenElement && document.fullscreenElement !== element) {
+          await document.exitFullscreen();
+        }
+        if (element.requestFullscreen) await element.requestFullscreen();
+        element.classList.add('fullscreen');
+        if (element === resultsEl) element.classList.add('fullscreen-results');
+        if (button) button.textContent = 'Sair da tela cheia';
+      } catch (error) {
+        element.classList.toggle('fullscreen');
+        if (element === resultsEl) element.classList.toggle('fullscreen-results');
+        if (button) {
+          const active = element.classList.contains('fullscreen') || element.classList.contains('fullscreen-results');
+          button.textContent = active ? 'Sair da tela cheia' : 'Tela cheia';
+        }
+      }
+    }
+
+    async function exitAnyFullscreen() {
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        } else {
+          timerDisplay.classList.remove('fullscreen');
+          clockDisplay.classList.remove('fullscreen');
+          if (wheelWrap) wheelWrap.classList.remove('fullscreen');
+          if (resultsEl) resultsEl.classList.remove('fullscreen-results');
+          if (pomodoroDisplay) pomodoroDisplay.classList.remove('fullscreen');
+          if (winnerBanner) winnerBanner.classList.remove('fullscreen');
+        }
+      } catch (error) {}
+    }
+
+    async function toggleFullscreen(element, button) {
+      try {
+        if (!document.fullscreenElement) {
+          if (element.requestFullscreen) await element.requestFullscreen();
+          element.classList.add('fullscreen');
+          if (element === resultsEl) element.classList.add('fullscreen-results');
+          button.textContent = 'Sair da tela cheia';
+        } else {
+          await document.exitFullscreen();
+        }
+      } catch (error) {
+        element.classList.toggle('fullscreen');
+        if (element === resultsEl) element.classList.toggle('fullscreen-results');
+        const active = element.classList.contains('fullscreen') || element.classList.contains('fullscreen-results');
+        button.textContent = active ? 'Sair da tela cheia' : (button.id === 'fullscreenWheel' ? 'Tela cheia roleta' : button.id === 'fullscreenResults' ? 'Tela cheia resultado' : 'Tela cheia');
+      }
+    }
+
+    function updateBrasiliaClock() {
+      const now = new Date();
+      const time = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).format(now);
+
+      const weekday = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        weekday: 'long'
+      }).format(now);
+
+      const date = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }).format(now);
+
+      if (clockTime) clockTime.textContent = time;
+      if (clockDate) clockDate.textContent = `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} • ${date}`;
+      if (clockCity) clockCity.textContent = 'São Paulo - SP';
+    }
+
+    function updateBrasiliaWeather() { return; }
+
+
+
+    function extractYouTubeId(url) {
+      const value = String(url || '').trim();
+      try {
+        const parsed = new URL(value);
+        if (parsed.hostname.includes('youtu.be')) return parsed.pathname.replace(/^\//, '').split('/')[0];
+        if (parsed.pathname.startsWith('/watch')) return parsed.searchParams.get('v') || '';
+        if (parsed.pathname.startsWith('/shorts/')) return parsed.pathname.split('/shorts/')[1].split('/')[0];
+        if (parsed.pathname.startsWith('/embed/')) return parsed.pathname.split('/embed/')[1].split('/')[0];
+      } catch (error) {
+        return '';
+      }
+      return '';
+    }
+
+    function getYouTubeThumbnail(url) {
+      const videoId = extractYouTubeId(url);
+      return videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '';
+    }
+
+    function getYouTubeEmbedUrl(url, autoplay = true) {
+      const videoId = extractYouTubeId(url);
+      if (!videoId) return '';
+      const params = new URLSearchParams({
+        autoplay: autoplay ? '1' : '0',
+        rel: '0',
+        modestbranding: '1',
+        playsinline: '1'
+      });
+      return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
+    }
+
+    function normalizeShortcut(value) {
+      return String(value || '').trim().toUpperCase();
+    }
+
+    function loadTracks() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_TRACKS) || 'null');
+        if (Array.isArray(saved) && saved.length) {
+          tracks = saved.map(t => ({
+            title: String(t.title || '').trim(),
+            desc: String(t.desc || '').trim(),
+            url: String(t.url || '').trim(),
+            key: normalizeShortcut(t.key || '')
+          })).filter(t => t.title && t.url);
+        }
+      } catch (e) {}
+      if (!tracks.length) tracks = defaultTracks.map(t => ({ ...t }));
+    }
+
+    function saveTracks() {
+      localStorage.setItem(STORAGE_TRACKS, JSON.stringify(tracks));
+    }
+
+    function renderShortcutList() {
+      const withKeys = tracks.filter(t => t.key);
+      shortcutList.innerHTML = withKeys.length
+        ? withKeys.map(t => `<kbd>${escapeHtml(t.key)}</kbd>`).join('')
+        : '<span class="muted">Sem atalhos configurados.</span>';
+    }
+
+    function fillTrackForm(track) {
+      trackTitle.value = track ? track.title : '';
+      trackDesc.value = track ? track.desc : '';
+      trackUrl.value = track ? normalizeMyInstantsUrl(track.url) : '';
+      trackKey.value = track ? track.key : '';
+    }
+
+    function renderTracks() {
+      if (!tracks.length) {
+        soundGrid.innerHTML = '<div class="mini-note">Nenhuma trilha cadastrada.</div>';
+        renderShortcutList();
+        return;
+      }
+      soundGrid.innerHTML = tracks.map((track, index) => `
+        <button class="sound-card ${index === currentTrackIndex ? 'active' : ''}" data-track-index="${index}" type="button">
+          <div style="display:flex;justify-content:space-between;gap:10px;align-items:start;">
+            <strong>${escapeHtml(track.title)}</strong>
+            <span class="shortcut-badge">${escapeHtml(track.key || '-')}</span>
+          </div>
+          <div class="muted">${escapeHtml(track.desc || 'Sem descrição')}</div>
+          <div class="sound-url">${escapeHtml(track.url)}</div>
+        </button>`).join('');
+      soundGrid.querySelectorAll('[data-track-index]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const index = Number(btn.dataset.trackIndex);
+          selectTrack(index);
+          playSelectedTrack();
+        });
+      });
+      renderShortcutList();
+    }
+
+    function selectTrack(index) {
+      if (!tracks[index]) return;
+      currentTrackIndex = index;
+      fillTrackForm(tracks[index]);
+      nowPlayingTitle.textContent = tracks[index].title;
+      nowPlayingDesc.textContent = (tracks[index].desc || 'Sem descrição') + (tracks[index].key ? ' · Tecla: ' + tracks[index].key : '');
+      renderTracks();
+    }
+
+    function ensureSelectedTrack() {
+      if (currentTrackIndex >= 0 && tracks[currentTrackIndex]) return true;
+      if (!tracks.length) {
+        showStatus('Cadastre pelo menos uma trilha.', 'error');
+        return false;
+      }
+      selectTrack(0);
+      return true;
+    }
+
+    function playSelectedTrack() {
+      if (!ensureSelectedTrack()) return;
+      const track = tracks[currentTrackIndex];
+      const fixedUrl = normalizeMyInstantsUrl(track.url);
+      if (audioPlayer.src !== fixedUrl) audioPlayer.src = fixedUrl;
+      audioPlayer.volume = Number(volumeRange.value) / 100;
+      audioPlayer.play().catch(() => {
+        showStatus('O navegador bloqueou a reprodução automática. Clique novamente no pad ou no play.', 'error');
+      });
+    }
+
+    function pauseSelectedTrack() { audioPlayer.pause(); }
+    function stopSelectedTrack() {
+      audioPlayer.pause();
+      try { audioPlayer.currentTime = 0; } catch (e) {}
+    }
+    function restartSelectedTrack() {
+      if (!ensureSelectedTrack()) return;
+      const fixedUrl = normalizeMyInstantsUrl(tracks[currentTrackIndex].url);
+      if (audioPlayer.src !== fixedUrl) audioPlayer.src = fixedUrl;
+      try { audioPlayer.currentTime = 0; } catch (e) {}
+      audioPlayer.play().catch(() => {});
+    }
+
+    function saveTrackFromForm() {
+      const title = trackTitle.value.trim();
+      const desc = trackDesc.value.trim();
+      const url = trackUrl.value.trim();
+      const key = normalizeShortcut(trackKey.value);
+      if (!title || !url) {
+        showStatus('Preencha pelo menos título e URL da trilha.', 'error');
+        return;
+      }
+      const conflictIndex = tracks.findIndex((t, i) => i !== currentTrackIndex && normalizeShortcut(t.key) === key && key);
+      if (conflictIndex >= 0) {
+        showStatus('Essa tecla já está sendo usada em outra trilha.', 'error');
+        return;
+      }
+      const payload = { title, desc, url: normalizeMyInstantsUrl(url), key };
+      if (currentTrackIndex >= 0 && tracks[currentTrackIndex]) {
+        tracks[currentTrackIndex] = payload;
+        showStatus('Trilha atualizada.', 'success');
+      } else {
+        tracks.push(payload);
+        currentTrackIndex = tracks.length - 1;
+        showStatus('Nova trilha adicionada.', 'success');
+      }
+      saveTracks();
+      selectTrack(currentTrackIndex);
+      renderTracks();
+    }
+
+    function deleteCurrentTrack() {
+      if (currentTrackIndex < 0 || !tracks[currentTrackIndex]) {
+        showStatus('Selecione uma trilha para excluir.', 'error');
+        return;
+      }
+      const removed = tracks[currentTrackIndex].title;
+      tracks.splice(currentTrackIndex, 1);
+      saveTracks();
+      currentTrackIndex = tracks.length ? Math.min(currentTrackIndex, tracks.length - 1) : -1;
+      fillTrackForm(tracks[currentTrackIndex] || null);
+      if (currentTrackIndex >= 0) selectTrack(currentTrackIndex);
+      else {
+        nowPlayingTitle.textContent = 'Nenhuma trilha selecionada';
+        nowPlayingDesc.textContent = 'Selecione um pad para tocar.';
+        renderTracks();
+      }
+      stopSelectedTrack();
+      showStatus('Trilha excluída: ' + removed, 'success');
+    }
+
+    function resetTracks() {
+      tracks = defaultTracks.map(t => ({ ...t }));
+      saveTracks();
+      currentTrackIndex = 0;
+      selectTrack(0);
+      renderTracks();
+      stopSelectedTrack();
+      showStatus('Trilhas padrão restauradas.', 'success');
+    }
+
+    function handleTrackShortcut(event) {
+      const active = document.activeElement;
+      const tag = active && active.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (active && active.isContentEditable)) return;
+      const key = normalizeShortcut(event.key);
+      const index = tracks.findIndex(t => normalizeShortcut(t.key) === key);
+      if (index >= 0) {
+        event.preventDefault();
+        selectTrack(index);
+        playSelectedTrack();
+      }
+    }
+
+    function runSelfTests() {
+
+      console.assert(JSON.stringify(normalizePair('Bruno', 'Ana')) === JSON.stringify(['Ana', 'Bruno']), 'normalizePair deve ordenar alfabeticamente');
+
+      const originalRestrictions = restrictions;
+      restrictions = [{ type: 'pair', a: 'Ana', b: 'Carlos' }];
+      console.assert(violatesRestrictions([['Ana', 'Carlos'], ['Bruno']]) === true, 'Regra pair deve detectar conflito');
+
+      restrictions = [{ type: 'solo', a: 'Ana' }];
+      console.assert(violatesRestrictions([['Ana'], ['Bruno', 'Carlos']]) === false, 'Regra solo deve permitir pessoa sozinha');
+      console.assert(violatesRestrictions([['Ana', 'Bruno'], ['Carlos']]) === true, 'Regra solo deve bloquear pessoa acompanhada');
+
+      restrictions = [{ type: 'pot', a: 'Ana', pot: 1 }, { type: 'pot', a: 'Bruno', pot: 1 }];
+      console.assert(violatesRestrictions([['Ana', 'Bruno'], ['Carlos']]) === true, 'Regra pote deve bloquear mesmo pote na mesma equipe');
+      console.assert(violatesRestrictions([['Ana', 'Carlos'], ['Bruno']]) === false, 'Regra pote deve permitir potes separados');
+
+      names.value = 'Ana\r\nBruno\nCarlos\r\n';
+      console.assert(JSON.stringify(getParticipantList()) === JSON.stringify(['Ana', 'Bruno', 'Carlos']), 'Leitura de nomes deve aceitar CRLF e LF');
+
+      restrictions = originalRestrictions;
+      names.value = '';
+    }
+
+    document.querySelectorAll('.tab-btn').forEach((btn) => btn.addEventListener('click', () => setActiveTab(btn.dataset.tab)));
+    document.getElementById('addRestriction').addEventListener('click', addRestriction);
+    document.getElementById('toggleRestrictions').addEventListener('click', openRestrictions);
+    document.getElementById('closeRestrictions').addEventListener('click', closeRestrictions);
+    document.getElementById('drawTeams').addEventListener('click', drawTeams);
+    document.getElementById('redrawTeams').addEventListener('click', drawTeams);
+    document.getElementById('saveData').addEventListener('click', saveData);
+    document.getElementById('loadData').addEventListener('click', loadData);
+    document.getElementById('clearData').addEventListener('click', clearAllData);
+    exportPdfBtn.addEventListener('click', exportToPdf);
+    exportExcelBtn.addEventListener('click', exportToExcel);
+    exportRulesBtn.addEventListener('click', exportRulesToFile);
+    importRulesBtn.addEventListener('click', () => importRulesFile.click());
+    importRulesFile.addEventListener('change', (event) => importRulesFromFile(event.target.files?.[0]));
+    drawerOverlay.addEventListener('click', closeRestrictions);
+    names.addEventListener('input', updateParticipantSelectors);
+    restrictionType.addEventListener('change', updateRestrictionUi);
+    loadWheelBtn.addEventListener('click', loadWheel);
+    spinNowBtn.addEventListener('click', spinWheel);
+    if (spinWithSoundBtn) spinWithSoundBtn.addEventListener('click', spinWheelWithSound);
+    if (stopWheelSoundBtn) stopWheelSoundBtn.addEventListener('click', () => stopWheelSoundPlayback(true));
+    winnerBack.addEventListener('click', hideWinnerPopup);
+    if (winnerFullscreenBtn) winnerFullscreenBtn.addEventListener('click', async () => {
+      await forceFullscreen(wheelWrap, winnerFullscreenBtn);
+      if (winnerBanner.classList.contains('show')) syncWheelOverlayHost();
+    });
+    if (winnerSpinAgain) winnerSpinAgain.addEventListener('click', async () => {
+      hideWinnerPopup();
+      setTimeout(() => spinWheel(), 60);
+    });
+    if (wheelSpinFullscreenBtn) wheelSpinFullscreenBtn.addEventListener('click', () => {
+      hideWinnerPopup();
+      setTimeout(() => spinWheel(), 60);
+    });
+    if (wheelSpinWithSoundFullscreenBtn) wheelSpinWithSoundFullscreenBtn.addEventListener('click', () => {
+      hideWinnerPopup();
+      setTimeout(() => spinWheelWithSound(), 60);
+    });
+    if (wheelStopSoundFullscreenBtn) wheelStopSoundFullscreenBtn.addEventListener('click', () => stopWheelSoundPlayback(true));
+    if (wheelWinnerFullscreenInlineBtn) wheelWinnerFullscreenInlineBtn.addEventListener('click', async () => {
+      await forceFullscreen(wheelWrap, wheelWinnerFullscreenInlineBtn);
+      if (winnerBanner.classList.contains('show')) syncWheelOverlayHost();
+    });
+    if (wheelBackInlineBtn) wheelBackInlineBtn.addEventListener('click', hideWinnerPopup);
+    if (wheelRemoveInlineBtn) wheelRemoveInlineBtn.addEventListener('click', removeLastWheelWinner);
+    if (wheelExitFullscreenBtn) wheelExitFullscreenBtn.addEventListener('click', exitAnyFullscreen);
+    winnerRemove.addEventListener('click', removeLastWheelWinner);
+    wheelConfigBtn.addEventListener('click', openWheelConfig);
+    wheelConfigClose.addEventListener('click', closeWheelConfig);
+    previewMode.addEventListener('change', () => renderGroupPreview());
+    configTargetMode.addEventListener('change', renderCandidateList);
+    candidateFilter.addEventListener('input', renderCandidateList);
+    wheelConfigRandom.addEventListener('click', () => {
+      forcedNextSelection[configTargetMode.value] = '';
+      renderCandidateList();
+    });
+    wheelConfigSave.addEventListener('click', () => {
+      const selected = document.querySelector('input[name="forcedCandidate"]:checked');
+      forcedNextSelection[configTargetMode.value] = selected ? selected.value : '';
+      updateForcedSelectionInfo();
+      closeWheelConfig();
+      showStatus(forcedNextSelection[configTargetMode.value] ? `Próximo sorteio configurado para ${forcedNextSelection[configTargetMode.value]}.` : 'Próximo sorteio definido como aleatório.', 'success');
+    });
+    winnerBanner.addEventListener('click', (event) => {
+      if (event.target === winnerBanner) hideWinnerPopup();
+    });
+    wheelConfigModal.addEventListener('click', (event) => {
+      if (event.target === wheelConfigModal) closeWheelConfig();
+    });
+
+    wheelMode.addEventListener('change', () => {
+      wheelItems = [];
+      stopWheelIdle();
+      drawWheel([], 0);
+      renderGroupPreview();
+      wheelResult.textContent = 'Modo alterado. Clique em carregar na roleta.';
+    });
+
+    timerPreset.addEventListener('change', () => {
+      if (timerPreset.value) {
+        const total = Number(timerPreset.value);
+        timerMinutes.value = Math.floor(total / 60);
+        timerSeconds.value = total % 60;
+        resetTimer();
+      }
+    });
+
+    timerMinutes.addEventListener('input', syncTimerFromInputs);
+    timerSeconds.addEventListener('input', syncTimerFromInputs);
+    startTimerBtn.addEventListener('click', startTimer);
+    pauseTimerBtn.addEventListener('click', pauseTimer);
+    resetTimerBtn.addEventListener('click', resetTimer);
+    fullscreenTimerBtn.addEventListener('click', () => toggleFullscreen(timerDisplay, fullscreenTimerBtn));
+    fullscreenClockBtn.addEventListener('click', () => toggleFullscreen(clockDisplay, fullscreenClockBtn));
+    if (fullscreenWheelBtn) fullscreenWheelBtn.addEventListener('click', () => toggleFullscreen(wheelWrap, fullscreenWheelBtn));
+    if (fullscreenResultsBtn) fullscreenResultsBtn.addEventListener('click', () => toggleFullscreen(resultsEl, fullscreenResultsBtn));
+    if (fullscreenPomodoroBtn) fullscreenPomodoroBtn.addEventListener('click', () => toggleFullscreen(pomodoroDisplay, fullscreenPomodoroBtn));
+    if (themeLightBtn) themeLightBtn.addEventListener('click', () => setThemeMode('light'));
+    if (themeDarkBtn) themeDarkBtn.addEventListener('click', () => setThemeMode('dark'));
+    if (pomodoroStartBtn) pomodoroStartBtn.addEventListener('click', startPomodoro);
+    if (pomodoroPauseBtn) pomodoroPauseBtn.addEventListener('click', pausePomodoro);
+    if (pomodoroResetBtn) pomodoroResetBtn.addEventListener('click', resetPomodoro);
+    document.getElementById('playTrackBtn').addEventListener('click', playSelectedTrack);
+    document.getElementById('pauseTrackBtn').addEventListener('click', pauseSelectedTrack);
+    document.getElementById('stopTrackBtn').addEventListener('click', stopSelectedTrack);
+    document.getElementById('restartTrackBtn').addEventListener('click', restartSelectedTrack);
+    volumeRange.addEventListener('input', () => audioPlayer.volume = Number(volumeRange.value) / 100);
+    document.getElementById('saveTrackBtn').addEventListener('click', saveTrackFromForm);
+    document.getElementById('newTrackBtn').addEventListener('click', () => { currentTrackIndex = -1; fillTrackForm(null); nowPlayingTitle.textContent = 'Nova trilha'; nowPlayingDesc.textContent = 'Preencha os campos e salve.'; renderTracks(); });
+    document.getElementById('deleteTrackBtn').addEventListener('click', deleteCurrentTrack);
+    document.getElementById('resetTracksBtn').addEventListener('click', resetTracks);
+    document.addEventListener('keydown', handleTrackShortcut);
+    audioPlayer.addEventListener('error', () => showStatus('Não foi possível carregar essa URL de áudio. Troque a URL da trilha.', 'error'));
+
+    document.addEventListener('fullscreenchange', () => {
+      const current = document.fullscreenElement;
+      timerDisplay.classList.toggle('fullscreen', current === timerDisplay);
+      clockDisplay.classList.toggle('fullscreen', current === clockDisplay);
+      if (wheelWrap) wheelWrap.classList.toggle('fullscreen', current === wheelWrap);
+      if (resultsEl) resultsEl.classList.toggle('fullscreen-results', current === resultsEl);
+      if (pomodoroDisplay) pomodoroDisplay.classList.toggle('fullscreen', current === pomodoroDisplay);
+      if (winnerBanner) {
+        winnerBanner.classList.remove('fullscreen');
+        if (winnerBanner.classList.contains('show')) {
+          syncWheelOverlayHost();
+        } else {
+          restoreWheelOverlayHost();
+        }
+      }
+      fullscreenTimerBtn.textContent = current === timerDisplay ? 'Sair da tela cheia' : 'Tela cheia';
+      fullscreenClockBtn.textContent = current === clockDisplay ? 'Sair da tela cheia' : 'Tela cheia';
+      if (fullscreenWheelBtn) fullscreenWheelBtn.textContent = current === wheelWrap ? 'Sair da tela cheia' : 'Tela cheia roleta';
+      if (fullscreenResultsBtn) fullscreenResultsBtn.textContent = current === resultsEl ? 'Sair da tela cheia' : 'Tela cheia resultado';
+      if (fullscreenPomodoroBtn) fullscreenPomodoroBtn.textContent = current === pomodoroDisplay ? 'Sair da tela cheia' : 'Tela cheia';
+      if (winnerFullscreenBtn) winnerFullscreenBtn.textContent = current === wheelWrap ? 'Sair da tela cheia' : 'Tela cheia sorteado';
+      if (wheelWinnerFullscreenInlineBtn) {
+        wheelWinnerFullscreenInlineBtn.textContent = 'Tela cheia sorteado';
+        wheelWinnerFullscreenInlineBtn.style.display = current === wheelWrap ? 'none' : 'inline-flex';
+      }
+      if (wheelExitFullscreenBtn) wheelExitFullscreenBtn.style.display = current === wheelWrap ? 'inline-flex' : 'none';
+    });
+
+    applySavedTheme();
+    updateWheelStopMusicButtonsState();
+    updateParticipantSelectors();
+    updateRestrictionUi();
+    renderRestrictions();
+    renderTeams(lastTeams);
+    updateForcedSelectionInfo();
+    renderGroupPreview();
+    syncTimerFromInputs();
+    drawWheel([], 0);
+    loadTracks();
+    renderTracks();
+    if (tracks.length) selectTrack(0);
+    audioPlayer.volume = Number(volumeRange.value) / 100;
+    updateBrasiliaClock();
+    updatePomodoroDisplay();
+    setInterval(updateBrasiliaClock, 1000);
+    runSelfTests();
+  
+function launchFullscreenConfetti(){
+  launchConfetti(180, 7600);
+}
+
+</script>
+</body>
+</html>
