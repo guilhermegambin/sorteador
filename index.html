@@ -2124,7 +2124,10 @@ display:flex !important;
             <button class="btn-primary" id="drawTeams">Sortear equipes</button>
             <button class="btn-secondary" id="saveData">Salvar</button>
             <button class="btn-secondary" id="loadData">Carregar</button>
+            <button class="btn-secondary" id="saveDrawJson">Salvar sorteio JSON</button>
+            <button class="btn-secondary" id="loadDrawJson">Carregar sorteio anterior</button>
             <button class="btn-danger" id="clearData">Limpar</button>
+            <input id="loadDrawJsonFile" type="file" accept="application/json" style="display:none;" />
           </div>
 
           <div id="status" class="status"></div>
@@ -2373,7 +2376,7 @@ display:flex !important;
           <div>
             <div class="audio-box">
               <h3 id="nowPlayingTitle">Nenhuma trilha selecionada</h3>
-              <div class="muted" id="nowPlayingDesc">Selecione um pad para tocar.</div>
+              <div class="muted" id="nowPlayingDesc">Selecione uma trilha local para tocar.</div>
               <audio id="audioPlayer" controls preload="none"></audio>
               <div class="top-actions">
                 <button class="btn-primary" id="playTrackBtn" type="button">Play</button>
@@ -2515,6 +2518,9 @@ display:flex !important;
     const exportPdfBtn = document.getElementById('exportPdf');
     const exportExcelBtn = document.getElementById('exportExcel');
     const fullscreenResultsBtn = document.getElementById('fullscreenResults');
+    const saveDrawJsonBtn = document.getElementById('saveDrawJson');
+    const loadDrawJsonBtn = document.getElementById('loadDrawJson');
+    const loadDrawJsonFile = document.getElementById('loadDrawJsonFile');
     const themeLightBtn = document.getElementById('themeLightBtn');
     const themeDarkBtn = document.getElementById('themeDarkBtn');
 
@@ -2862,6 +2868,70 @@ display:flex !important;
     function clearStatus() {
       status.className = 'status';
       status.textContent = '';
+    }
+
+    function sanitizeFileName(value) {
+      return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .toLowerCase() || 'sorteio';
+    }
+
+    function getDrawFileName() {
+      const baseName = sanitizeFileName(projectName.value || 'sorteio_equipes');
+      const date = new Date();
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      return `${baseName}_${yyyy}-${mm}-${dd}.json`;
+    }
+
+    function buildDrawPayload() {
+      return {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        projectName: projectName.value || '',
+        names: names.value || '',
+        teamCount: teamCount.value || '8',
+        teamSize: teamSize.value || '',
+        maxAttempts: maxAttempts.value || '5000',
+        restrictions: Array.isArray(restrictions) ? restrictions : [],
+        lastTeams: Array.isArray(lastTeams) ? lastTeams : []
+      };
+    }
+
+    async function saveJsonWithPicker(payload, suggestedName) {
+      if (!window.showSaveFilePicker) return false;
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName,
+          types: [{
+            description: 'Arquivo JSON',
+            accept: { 'application/json': ['.json'] }
+          }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(JSON.stringify(payload, null, 2));
+        await writable.close();
+        return true;
+      } catch (error) {
+        if (error && error.name === 'AbortError') return null;
+        return false;
+      }
+    }
+
+    function downloadJsonFile(payload, fileName) {
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     }
 
     function escapeHtml(text) {
@@ -3750,6 +3820,68 @@ display:flex !important;
       renderGroupPreview();
       savedInfo.textContent = data.savedAt ? `Salvo localmente em ${data.savedAt}.` : 'Configuração carregada.';
       showStatus('Configuração carregada com sucesso.', 'success');
+    }
+
+
+    async function saveDrawResultToJson() {
+      if (!Array.isArray(lastTeams) || !lastTeams.length) {
+        showStatus('Faça um sorteio antes de salvar o resultado em JSON.', 'error');
+        return;
+      }
+
+      const payload = buildDrawPayload();
+      const fileName = getDrawFileName();
+      const pickerResult = await saveJsonWithPicker(payload, fileName);
+
+      if (pickerResult === true) {
+        showStatus('Resultado do sorteio salvo em JSON com sucesso.', 'success');
+        return;
+      }
+
+      if (pickerResult === null) {
+        showStatus('Salvamento cancelado.', 'error');
+        return;
+      }
+
+      downloadJsonFile(payload, fileName);
+      showStatus('O navegador baixou o JSON do sorteio. Você pode guardar esse arquivo na pasta local "sorteios" e importar depois.', 'success');
+    }
+
+    function applyImportedDrawData(data) {
+      projectName.value = data.projectName || '';
+      names.value = data.names || '';
+      teamCount.value = data.teamCount || 8;
+      teamSize.value = data.teamSize ?? '';
+      maxAttempts.value = data.maxAttempts || 5000;
+      restrictions = Array.isArray(data.restrictions) ? normalizeImportedRestrictions(data.restrictions) : [];
+      lastTeams = Array.isArray(data.lastTeams) ? data.lastTeams.filter((team) => Array.isArray(team)).map((team) => team.map((item) => String(item))) : [];
+      wheelItems = [];
+      forcedNextSelection = { individual: '', group: '' };
+      updateParticipantSelectors();
+      updateRestrictionUi();
+      renderRestrictions();
+      renderTeams(lastTeams);
+      renderGroupPreview();
+      savedInfo.textContent = data.exportedAt
+        ? `Sorteio importado de ${new Date(data.exportedAt).toLocaleString('pt-BR')}.`
+        : 'Sorteio importado com sucesso.';
+      showStatus('Sorteio anterior carregado com sucesso.', 'success');
+    }
+
+    async function importDrawResultFromFile(file) {
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        if (!data || !Array.isArray(data.lastTeams) || !data.lastTeams.length) {
+          throw new Error('Arquivo sem sorteio válido');
+        }
+        applyImportedDrawData(data);
+      } catch (error) {
+        showStatus('Falha ao importar o sorteio. Verifique se o JSON está válido.', 'error');
+      } finally {
+        loadDrawJsonFile.value = '';
+      }
     }
 
     function openRestrictions() {
@@ -4712,7 +4844,7 @@ display:flex !important;
       if (currentTrackIndex >= 0) selectTrack(currentTrackIndex);
       else {
         nowPlayingTitle.textContent = 'Nenhuma trilha selecionada';
-        nowPlayingDesc.textContent = 'Selecione um pad para tocar.';
+        nowPlayingDesc.textContent = 'Selecione uma trilha local para tocar.';
         renderTracks();
       }
       stopSelectedTrack();
@@ -4773,6 +4905,9 @@ display:flex !important;
     document.getElementById('redrawTeams').addEventListener('click', drawTeams);
     document.getElementById('saveData').addEventListener('click', saveData);
     document.getElementById('loadData').addEventListener('click', loadData);
+    saveDrawJsonBtn.addEventListener('click', saveDrawResultToJson);
+    loadDrawJsonBtn.addEventListener('click', () => loadDrawJsonFile.click());
+    loadDrawJsonFile.addEventListener('change', (event) => importDrawResultFromFile(event.target.files?.[0]));
     document.getElementById('clearData').addEventListener('click', clearAllData);
     exportPdfBtn.addEventListener('click', exportToPdf);
     exportExcelBtn.addEventListener('click', exportToExcel);
