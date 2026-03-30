@@ -2093,7 +2093,7 @@ display:flex !important;
         <section class="panel">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
             <h2 style="margin:0;">Configuração</h2>
-            
+            <button class="btn-secondary" id="toggleRestrictions" type="button">Abrir regras</button>
           </div>
 
           <label for="projectName">Nome da turma / sorteio</label>
@@ -2125,7 +2125,6 @@ display:flex !important;
             <button class="btn-secondary" id="saveData">Salvar</button>
             <button class="btn-secondary" id="loadData">Carregar</button>
             <button class="btn-danger" id="clearData">Limpar</button>
-            <button class="btn-secondary" id="toggleRestrictions" type="button">Abrir regras</button>
           </div>
 
           <div id="status" class="status"></div>
@@ -2365,8 +2364,8 @@ display:flex !important;
     </div>
     <div id="tab-som" class="tab-content">
       <section class="panel">
-        <h2>Trilhas no estilo MyInstants</h2>
-        <div class="mini-note">Os atalhos funcionam fora dos campos de texto. Você pode trocar a URL, criar novas trilhas e mudar a tecla de cada uma.</div>
+        <h2>Trilhas locais</h2>
+        <div class="mini-note">Os atalhos funcionam fora dos campos de texto. Agora as trilhas usam arquivos locais da pasta <strong>trilhas/</strong>. Você pode trocar o caminho, criar novas trilhas e mudar a tecla de cada uma.</div>
         <div class="sound-layout" style="margin-top:14px;">
           <div>
             <div class="sound-grid" id="soundGrid"></div>
@@ -2394,8 +2393,8 @@ display:flex !important;
               <input id="trackTitle" type="text" placeholder="Ex.: Errou do Faustão">
               <label for="trackDesc">Descrição</label>
               <input id="trackDesc" type="text" placeholder="Ex.: efeito de erro clássico">
-              <label for="trackUrl">URL do áudio</label>
-              <input id="trackUrl" type="text" placeholder="https://www.myinstants.com/media/sounds/exemplo.mp3">
+              <label for="trackUrl">Caminho do áudio</label>
+              <input id="trackUrl" type="text" placeholder="trilhas/exemplo.mp3">
               <label for="trackKey">Tecla de atalho</label>
               <input id="trackKey" type="text" maxlength="12" placeholder="Ex.: 1, Q, A, F2">
               <div class="top-actions">
@@ -2404,7 +2403,7 @@ display:flex !important;
                 <button class="btn-danger" id="deleteTrackBtn" type="button">Excluir selecionada</button>
                 <button class="btn-warning" id="resetTracksBtn" type="button">Restaurar padrões</button>
               </div>
-              <div class="hint" style="margin-top:10px;">Dica: se uma URL não tocar, troque por outra URL direta do áudio. O formulário já ficou preparado para você ajustar rápido.</div>
+              <div class="hint" style="margin-top:10px;">Dica: use caminhos locais, como <strong>trilhas/exemplo.mp3</strong>. O formulário já ficou preparado para você ajustar rápido.</div>
             </div>
           </div>
         </div>
@@ -2592,9 +2591,12 @@ display:flex !important;
     const soundNowPlaying = document.getElementById('soundNowPlaying');
     const audioPlayer = document.getElementById('audioPlayer');
 
-    function normalizeMyInstantsUrl(url) {
+    function normalizeAudioPath(url) {
       if (!url) return url;
-      return String(url).replace(/(https:\/\/www\.myinstants\.com\/media\/sounds\/[a-z0-9\-]+)-\d+(\.mp3)/i, '$1$2');
+      const value = String(url).trim();
+      const match = value.match(/^https:\/\/www\.myinstants\.com\/media\/sounds\/([^?#]+\.mp3)$/i);
+      if (match) return `trilhas/${match[1]}`;
+      return value;
     }
     const volumeRange = document.getElementById('volumeRange');
     const soundGrid = document.getElementById('soundGrid');
@@ -2618,234 +2620,234 @@ display:flex !important;
     let lastWheelWinner = null;
     let forcedNextSelection = { individual: '', group: '' };
 
-    const STORAGE_TRACKS = 'sorteador_tracks_v11_myinstants_plus5';
+    const STORAGE_TRACKS = 'sorteador_tracks_v12_local_audio';
     const defaultTracks = [
       {
             "title": "Pião do Baú",
             "desc": "Tema cômico para resultado ou transição.",
-            "url": "https://www.myinstants.com/media/sounds/piao-do-bau-com-musica.mp3",
+            "url": "trilhas/piao-do-bau-com-musica.mp3",
             "key": "7"
       },
       {
             "title": "Certa resposta — Show do Milhão",
             "desc": "Efeito de acerto em clima de quiz.",
-            "url": "https://www.myinstants.com/media/sounds/certa-resposta-show-do-milhao.mp3",
+            "url": "trilhas/certa-resposta-show-do-milhao.mp3",
             "key": "A"
       },
       {
             "title": "Errou — Show do Milhão",
             "desc": "Erro clássico de programa de perguntas.",
-            "url": "https://www.myinstants.com/media/sounds/errou-show-do-milhao.mp3",
+            "url": "trilhas/errou-show-do-milhao.mp3",
             "key": "S"
       },
       {
             "title": "Ninguém acertou — Faustão",
             "desc": "Reação divertida quando ninguém acerta.",
-            "url": "https://www.myinstants.com/media/sounds/ninguem-acertou.mp3",
+            "url": "trilhas/ninguem-acertou.mp3",
             "key": "D"
       },
       {
             "title": "Errou — Game Show",
             "desc": "Erro seco de game show.",
-            "url": "https://www.myinstants.com/media/sounds/lost-a-life-game-over-sound-effect-8-bits.mp3",
+            "url": "trilhas/lost-a-life-game-over-sound-effect-8-bits.mp3",
             "key": "F"
       },
       {
             "title": "Errou nada nada",
             "desc": "Erro engraçado e rápido.",
-            "url": "https://www.myinstants.com/media/sounds/errou-nadanada.mp3",
+            "url": "trilhas/errou-nadanada.mp3",
             "key": "G"
       },
       {
             "title": "Plateia",
             "desc": "Reação da plateia.",
-            "url": "https://www.myinstants.com/media/sounds/plateia.mp3",
+            "url": "trilhas/plateia.mp3",
             "key": "H"
       },
       {
             "title": "Carmen Overture",
             "desc": "Trilha clássica para abertura ou intervalo.",
-            "url": "https://www.myinstants.com/media/sounds/georges-bizet-carmen-overture.mp3",
+            "url": "trilhas/georges-bizet-carmen-overture.mp3",
             "key": "J"
       },
       {
             "title": "Ele fez de novo",
             "desc": "Reação engraçada para repetição.",
-            "url": "https://www.myinstants.com/media/sounds/ele-fezz-de-novo-incansavel.mp3",
+            "url": "trilhas/ele-fezz-de-novo-incansavel.mp3",
             "key": "K"
       },
       {
             "title": "Irra — Ratinho",
             "desc": "Reação animada do Ratinho.",
-            "url": "https://www.myinstants.com/media/sounds/irra-ratinho.mp3",
+            "url": "trilhas/irra-ratinho.mp3",
             "key": "L"
       },
       {
             "title": "Pare",
             "desc": "Comando de pausa ou atenção.",
-            "url": "https://www.myinstants.com/media/sounds/pare.mp3",
+            "url": "trilhas/pare.mp3",
             "key": "Z"
       },
       {
             "title": "Que isso, fi? — Faro",
             "desc": "Reação surpresa engraçada.",
-            "url": "https://www.myinstants.com/media/sounds/que-isso-fi-faro.mp3",
+            "url": "trilhas/que-isso-fi-faro.mp3",
             "key": "X"
       },
       {
             "title": "Uepa",
             "desc": "Efeito de surpresa.",
-            "url": "https://www.myinstants.com/media/sounds/uepa_d0qhZxO.mp3",
+            "url": "trilhas/uepa_d0qhZxO.mp3",
             "key": "C"
       },
       {
             "title": "Sad violin",
             "desc": "Violino triste de meme.",
-            "url": "https://www.myinstants.com/media/sounds/tf_nemesis.mp3",
+            "url": "trilhas/tf_nemesis.mp3",
             "key": "V"
       },
       {
             "title": "Bongo feet",
             "desc": "Percussão curta e descontraída.",
-            "url": "https://www.myinstants.com/media/sounds/bongo-feet.mp3",
+            "url": "trilhas/bongo-feet.mp3",
             "key": "B"
       },
       {
             "title": "Aplausos",
             "desc": "Aplausos para acertos ou sorteios.",
-            "url": "https://www.myinstants.com/media/sounds/aplausos-eeee.mp3",
+            "url": "trilhas/aplausos-eeee.mp3",
             "key": "N"
       },
       {
             "title": "Surpresa",
             "desc": "Surpresa exagerada.",
-            "url": "https://www.myinstants.com/media/sounds/surpresaaaaaaa.mp3",
+            "url": "trilhas/surpresaaaaaaa.mp3",
             "key": "M"
       },
       {
             "title": "I Feel Good",
             "desc": "Clima de vitória e energia.",
-            "url": "https://www.myinstants.com/media/sounds/james_brown_-_i_got_you_i_feel_good-1-i-got-you-i-feel-goodtrack-1.mp3",
+            "url": "trilhas/james_brown_-_i_got_you_i_feel_good-1-i-got-you-i-feel-goodtrack-1.mp3",
             "key": "1"
       },
       {
             "title": "12th Street Rag",
             "desc": "Trilha divertida e acelerada.",
-            "url": "https://www.myinstants.com/media/sounds/sound-baord-spongebob.mp3",
+            "url": "trilhas/sound-baord-spongebob.mp3",
             "key": "2"
       },
       {
             "title": "Gol do Brasil",
             "desc": "Vinheta de gol para celebração.",
-            "url": "https://www.myinstants.com/media/sounds/vinheta_gol_do_brasil_1994_.mp3",
+            "url": "trilhas/vinheta_gol_do_brasil_1994_.mp3",
             "key": "3"
       },
       {
             "title": "Agora eu entendi",
             "desc": "Reação de entendimento.",
-            "url": "https://www.myinstants.com/media/sounds/ah-agora-eu-entendi-agora-eu-saquei_Hocs3Q4.mp3",
+            "url": "trilhas/ah-agora-eu-entendi-agora-eu-saquei_Hocs3Q4.mp3",
             "key": "4"
       },
       {
             "title": "Tema do Senna",
             "desc": "Tema épico de vitória.",
-            "url": "https://www.myinstants.com/media/sounds/senna-theme.mp3",
+            "url": "trilhas/senna-theme.mp3",
             "key": "5"
       },
       {
             "title": "Roda a Roda — 10 segundos",
             "desc": "Contagem ou pressão de tempo.",
-            "url": "https://www.myinstants.com/media/sounds/roda-roda-jequiti-tempo-10-segundos.mp3",
+            "url": "trilhas/roda-roda-jequiti-tempo-10-segundos.mp3",
             "key": "6"
       },
       {
             "title": "Sirene BBB",
             "desc": "Alerta forte para atenção.",
-            "url": "https://www.myinstants.com/media/sounds/sirene-alerta-alarme-bbb.mp3",
+            "url": "trilhas/sirene-alerta-alarme-bbb.mp3",
             "key": "8"
       },
       {
             "title": "Pergunta — Silvio Santos",
             "desc": "Clima de pergunta e suspense.",
-            "url": "https://www.myinstants.com/media/sounds/pergunta-silvio-santos.mp3",
+            "url": "trilhas/pergunta-silvio-santos.mp3",
             "key": "9"
       },
       {
             "title": "Som de mistério",
             "desc": "Mistério para expectativa.",
-            "url": "https://www.myinstants.com/media/sounds/y2mate_kKZFjgX.mp3",
+            "url": "trilhas/y2mate_kKZFjgX.mp3",
             "key": "0"
       },
       {
             "title": "Oh no",
             "desc": "Erro ou imprevisto em tom de meme.",
-            "url": "https://www.myinstants.com/media/sounds/oh-no-no-no_x52qaxB.mp3",
+            "url": "trilhas/oh-no-no-no_x52qaxB.mp3",
             "key": "Q"
       },
       {
             "title": "Sudden suspense",
             "desc": "Suspense rápido.",
-            "url": "https://www.myinstants.com/media/sounds/sudden-suspense.mp3",
+            "url": "trilhas/sudden-suspense.mp3",
             "key": "W"
       },
       {
             "title": "Suspense strike",
             "desc": "Batida de suspense.",
-            "url": "https://www.myinstants.com/media/sounds/sound-effect-suspense-strike.mp3",
+            "url": "trilhas/sound-effect-suspense-strike.mp3",
             "key": "E"
       },
       {
             "title": "Dun dun duuun",
             "desc": "Suspense clássico.",
-            "url": "https://www.myinstants.com/media/sounds/dun_dun_dun.mp3",
+            "url": "trilhas/dun_dun_dun.mp3",
             "key": "R"
       },
       {
             "title": "Suspense Jason",
             "desc": "Suspense mais tenso.",
-            "url": "https://www.myinstants.com/media/sounds/illuminati-confirmed-sound-effect-hd-audio.mp3",
+            "url": "trilhas/illuminati-confirmed-sound-effect-hd-audio.mp3",
             "key": "T"
       },
       {
             "title": "Suspense drums",
             "desc": "Tambores de suspense.",
-            "url": "https://www.myinstants.com/media/sounds/suspense-drums.mp3",
+            "url": "trilhas/suspense-drums.mp3",
             "key": "Y"
       },
       {
             "title": "Violin terror",
             "desc": "Violino de tensão/terror.",
-            "url": "https://www.myinstants.com/media/sounds/psycho-violin-screech.mp3",
+            "url": "trilhas/psycho-violin-screech.mp3",
             "key": "U"
       }      ,
       {
             "title": "Errou Faustão",
             "desc": "Erro clássico do Faustão.",
-            "url": "https://www.myinstants.com/media/sounds/vinheta-faustao-errou-rede-globo.mp3",
+            "url": "trilhas/vinheta-faustao-errou-rede-globo.mp3",
             "key": "P"
       },
       {
             "title": "Acertou Faustão",
             "desc": "Acerto comemorado pelo Faustão.",
-            "url": "https://www.myinstants.com/media/sounds/acertou-faustao.mp3",
+            "url": "trilhas/acertou-faustao.mp3",
             "key": "I"
       },
       {
             "title": "Uou efeito sonoro",
             "desc": "Reação de surpresa/impacto.",
-            "url": "https://www.myinstants.com/media/sounds/uou-efeito-sonoro.mp3",
+            "url": "trilhas/uou-efeito-sonoro.mp3",
             "key": "O"
       },
       {
             "title": "Yeehaw do cowboy",
             "desc": "Efeito divertido estilo cowboy.",
-            "url": "https://www.myinstants.com/media/sounds/yeehaw-do-cowboy.mp3",
+            "url": "trilhas/yeehaw-do-cowboy.mp3",
             "key": "F1"
       },
       {
             "title": "Erro do Windows",
             "desc": "Som clássico de erro do Windows.",
-            "url": "https://www.myinstants.com/media/sounds/erro-do-windows.mp3",
+            "url": "trilhas/erro-do-windows.mp3",
             "key": "F2"
       }
 
@@ -4364,7 +4366,7 @@ display:flex !important;
     let wheelSoundSpinPending = false;
     let wheelWarmupAnimationId = null;
     let wheelWarmupLastTime = 0;
-    const WHEEL_SOUND_SPIN_URL = 'https://www.myinstants.com/media/sounds/piao-do-bau-com-musica.mp3';
+    const WHEEL_SOUND_SPIN_URL = 'trilhas/piao-do-bau-com-musica.mp3';
     const WHEEL_SOUND_SPIN_DELAY = 11000;
     let pomodoroSeconds = 25 * 60;
     let pomodoroMode = 'work';
@@ -4597,7 +4599,7 @@ display:flex !important;
     function fillTrackForm(track) {
       trackTitle.value = track ? track.title : '';
       trackDesc.value = track ? track.desc : '';
-      trackUrl.value = track ? normalizeMyInstantsUrl(track.url) : '';
+      trackUrl.value = track ? normalizeAudioPath(track.url) : '';
       trackKey.value = track ? track.key : '';
     }
 
@@ -4648,7 +4650,7 @@ display:flex !important;
     function playSelectedTrack() {
       if (!ensureSelectedTrack()) return;
       const track = tracks[currentTrackIndex];
-      const fixedUrl = normalizeMyInstantsUrl(track.url);
+      const fixedUrl = normalizeAudioPath(track.url);
       if (audioPlayer.src !== fixedUrl) audioPlayer.src = fixedUrl;
       audioPlayer.volume = Number(volumeRange.value) / 100;
       audioPlayer.play().catch(() => {
@@ -4663,7 +4665,7 @@ display:flex !important;
     }
     function restartSelectedTrack() {
       if (!ensureSelectedTrack()) return;
-      const fixedUrl = normalizeMyInstantsUrl(tracks[currentTrackIndex].url);
+      const fixedUrl = normalizeAudioPath(tracks[currentTrackIndex].url);
       if (audioPlayer.src !== fixedUrl) audioPlayer.src = fixedUrl;
       try { audioPlayer.currentTime = 0; } catch (e) {}
       audioPlayer.play().catch(() => {});
@@ -4675,7 +4677,7 @@ display:flex !important;
       const url = trackUrl.value.trim();
       const key = normalizeShortcut(trackKey.value);
       if (!title || !url) {
-        showStatus('Preencha pelo menos título e URL da trilha.', 'error');
+        showStatus('Preencha pelo menos título e caminho da trilha.', 'error');
         return;
       }
       const conflictIndex = tracks.findIndex((t, i) => i !== currentTrackIndex && normalizeShortcut(t.key) === key && key);
@@ -4683,7 +4685,7 @@ display:flex !important;
         showStatus('Essa tecla já está sendo usada em outra trilha.', 'error');
         return;
       }
-      const payload = { title, desc, url: normalizeMyInstantsUrl(url), key };
+      const payload = { title, desc, url: normalizeAudioPath(url), key };
       if (currentTrackIndex >= 0 && tracks[currentTrackIndex]) {
         tracks[currentTrackIndex] = payload;
         showStatus('Trilha atualizada.', 'success');
@@ -4875,7 +4877,7 @@ display:flex !important;
     document.getElementById('deleteTrackBtn').addEventListener('click', deleteCurrentTrack);
     document.getElementById('resetTracksBtn').addEventListener('click', resetTracks);
     document.addEventListener('keydown', handleTrackShortcut);
-    audioPlayer.addEventListener('error', () => showStatus('Não foi possível carregar essa URL de áudio. Troque a URL da trilha.', 'error'));
+    audioPlayer.addEventListener('error', () => showStatus('Não foi possível carregar esse áudio local. Verifique se o arquivo existe na pasta configurada.', 'error'));
 
     document.addEventListener('fullscreenchange', () => {
       const current = document.fullscreenElement;
