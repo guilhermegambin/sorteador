@@ -244,6 +244,7 @@
 
     .badge-separate { background: rgba(245, 158, 11, 0.14); color: #fde68a; }
     .badge-pair { background: rgba(239, 68, 68, 0.14); color: #fecaca; }
+    .badge-together { background: rgba(34, 197, 94, 0.18); color: #bbf7d0; }
     .badge-pot { background: rgba(99, 102, 241, 0.18); color: #c7d2fe; }
 
     .status {
@@ -2425,6 +2426,7 @@ display:flex !important;
       <label for="restrictionType">Tipo de regra</label>
       <select id="restrictionType">
         <option value="pair">Pessoa A não pode ficar com Pessoa B</option>
+        <option value="together">Pessoa A deve ficar com Pessoa B</option>
         <option value="solo">Pessoa deve ficar em grupo separado</option>
         <option value="pot">Participantes pertencem a um pote</option>
       </select>
@@ -2468,7 +2470,7 @@ display:flex !important;
       </div>
 
       <div class="restriction-list" id="restrictionList"></div>
-      <p class="hint">Regras do tipo “grupo separado” fazem a pessoa ficar sozinha em uma equipe. Regras do tipo “não pode ficar com” impedem a dupla de cair no mesmo grupo. Regras de pote distribuem participantes por nível, evitando que alunos do mesmo pote fiquem juntos quando a configuração permitir.</p>
+      <p class="hint">Regras do tipo “grupo separado” fazem a pessoa ficar sozinha em uma equipe. “Não pode ficar com” separa a dupla, enquanto “deve ficar com” mantém as pessoas juntas. Regras de pote distribuem participantes por nível, impedindo que alunos do mesmo pote fiquem juntos.</p>
     </div>
   </aside>
 
@@ -2958,7 +2960,7 @@ display:flex !important;
 
     function updateRestrictionUi() {
       const type = restrictionType.value;
-      personBWrap.style.display = type === 'pair' ? 'block' : 'none';
+      personBWrap.style.display = type === 'pair' || type === 'together' ? 'block' : 'none';
       potWrap.style.display = type === 'pot' ? 'block' : 'none';
     }
 
@@ -3018,12 +3020,12 @@ display:flex !important;
       }
 
       const [first, second] = normalizePair(a, b);
-      if (restrictions.some((r) => r.type === 'pair' && r.a === first && r.b === second)) {
+      if (restrictions.some((r) => r.type === type && r.a === first && r.b === second)) {
         showStatus('Essa regra já foi cadastrada.', 'error');
         return;
       }
 
-      restrictions.push({ type: 'pair', a: first, b: second });
+      restrictions.push({ type, a: first, b: second });
       renderRestrictions();
       showStatus('Regra adicionada com sucesso.', 'success');
     }
@@ -3049,6 +3051,8 @@ display:flex !important;
           content = `<div><div class="restriction-badge badge-separate">Grupo separado</div><div>${escapeHtml(rule.a)} deve ficar sozinho em uma equipe</div></div>`;
         } else if (rule.type === 'pot') {
           content = `<div><div class="restriction-badge badge-pot">Pote ${rule.pot}</div><div>${escapeHtml(rule.a)} pertence ao Pote ${rule.pot}</div></div>`;
+        } else if (rule.type === 'together') {
+          content = `<div><div class="restriction-badge badge-together">Manter juntos</div><div>${escapeHtml(rule.a)} deve ficar com ${escapeHtml(rule.b)}</div></div>`;
         } else {
           content = `<div><div class="restriction-badge badge-pair">Não juntar</div><div>${escapeHtml(rule.a)} não pode ficar com ${escapeHtml(rule.b)}</div></div>`;
         }
@@ -3122,6 +3126,8 @@ display:flex !important;
       const sizeValue = Number(sizeRaw);
 
       if (!hasCount && !hasSize) return { error: 'Informe a quantidade de equipes ou a quantidade de pessoas por equipe.' };
+      if (hasCount && !Number.isInteger(countValue)) return { error: 'A quantidade de equipes deve ser um número inteiro.' };
+      if (hasSize && !Number.isInteger(sizeValue)) return { error: 'A quantidade de pessoas por equipe deve ser um número inteiro.' };
       if (hasCount && countValue > totalParticipants) return { error: 'A quantidade de equipes não pode ser maior que a quantidade de participantes.' };
       if (hasCount && hasSize) return { mode: 'count-and-size', totalTeams: countValue, sizeLimit: sizeValue };
       if (hasCount) return { mode: 'count', totalTeams: countValue };
@@ -3131,25 +3137,216 @@ display:flex !important;
     function validateRestrictionsAgainstParticipants(participants) {
       for (const rule of restrictions) {
         if (!participants.includes(rule.a)) return 'Existe regra com nome que não está mais na lista de participantes.';
-        if (rule.type === 'pair' && !participants.includes(rule.b)) return 'Existe regra com nome que não está mais na lista de participantes.';
+        if ((rule.type === 'pair' || rule.type === 'together') && !participants.includes(rule.b)) return 'Existe regra com nome que não está mais na lista de participantes.';
       }
       return null;
     }
 
+    function buildTogetherGroups(participants) {
+      const parent = new Map(participants.map((person) => [person, person]));
+
+      function find(person) {
+        const currentParent = parent.get(person);
+        if (currentParent !== person) parent.set(person, find(currentParent));
+        return parent.get(person);
+      }
+
+      function union(a, b) {
+        const rootA = find(a);
+        const rootB = find(b);
+        if (rootA !== rootB) parent.set(rootB, rootA);
+      }
+
+      restrictions
+        .filter((rule) => rule.type === 'together')
+        .forEach((rule) => union(rule.a, rule.b));
+
+      const groups = new Map();
+      participants.forEach((person) => {
+        const root = find(person);
+        if (!groups.has(root)) groups.set(root, []);
+        groups.get(root).push(person);
+      });
+
+      return Array.from(groups.values());
+    }
+
+    function getTeamPlan(participants, resolution) {
+      const soloPeople = new Set(restrictions.filter((rule) => rule.type === 'solo').map((rule) => rule.a));
+      const soloCount = soloPeople.size;
+      const nonSoloTotal = participants.length - soloCount;
+      let totalTeamsLocal;
+      let nonSoloTeamCount;
+
+      if (resolution.mode === 'size') {
+        nonSoloTeamCount = nonSoloTotal > 0 ? Math.ceil(nonSoloTotal / resolution.sizeLimit) : 0;
+        totalTeamsLocal = soloCount + nonSoloTeamCount;
+      } else {
+        totalTeamsLocal = resolution.totalTeams;
+        nonSoloTeamCount = totalTeamsLocal - soloCount;
+      }
+
+      if (nonSoloTeamCount < 0) {
+        return { error: 'Há mais regras de grupo separado do que equipes disponíveis.' };
+      }
+      if (nonSoloTotal > 0 && nonSoloTeamCount === 0) {
+        return { error: 'Não há equipe disponível para os participantes que não possuem regra de grupo separado.' };
+      }
+      if (nonSoloTotal === 0 && nonSoloTeamCount > 0) {
+        return { error: 'A quantidade de equipes deixaria equipes vazias.' };
+      }
+      if (nonSoloTotal < nonSoloTeamCount) {
+        return { error: 'A quantidade de equipes deixaria equipes vazias por causa das regras de grupo separado.' };
+      }
+
+      if (resolution.mode !== 'count' && nonSoloTotal > nonSoloTeamCount * resolution.sizeLimit) {
+        return { error: 'A quantidade de equipes e o limite de pessoas não comportam todos os participantes.' };
+      }
+
+      const nonSoloMaxSize = nonSoloTeamCount === 0
+        ? 1
+        : resolution.mode === 'count'
+          ? nonSoloTotal - nonSoloTeamCount + 1
+          : resolution.sizeLimit;
+
+      return {
+        soloPeople,
+        totalTeams: totalTeamsLocal,
+        nonSoloTeamCount,
+        nonSoloMaxSize
+      };
+    }
+
     function validateConfiguration(participants, resolution) {
-      const soloRules = restrictions.filter((r) => r.type === 'solo');
-      const soloPeople = new Set(soloRules.map((r) => r.a));
-      const teamCountLocal = resolution.mode === 'count' || resolution.mode === 'count-and-size'
-        ? resolution.totalTeams
-        : Math.ceil(participants.length / resolution.sizeLimit);
+      const plan = getTeamPlan(participants, resolution);
+      if (plan.error) return plan.error;
 
-      if (soloPeople.size > teamCountLocal) return 'Há mais regras de grupo separado do que equipes disponíveis.';
+      const togetherGroups = buildTogetherGroups(participants);
+      const groupIndexByPerson = new Map();
+      togetherGroups.forEach((group, index) => group.forEach((person) => groupIndexByPerson.set(person, index)));
 
-      const potRules = restrictions.filter((r) => r.type === 'pot');
+      for (const group of togetherGroups) {
+        if (group.length > 1 && group.some((person) => plan.soloPeople.has(person))) {
+          return 'Uma pessoa não pode ficar sozinha e, ao mesmo tempo, possuir uma regra para ficar junto com outra.';
+        }
+      }
+
+      for (const rule of restrictions.filter((item) => item.type === 'pair')) {
+        if (groupIndexByPerson.get(rule.a) === groupIndexByPerson.get(rule.b)) {
+          return 'Há regras conflitantes: duas pessoas devem ficar juntas e também separadas.';
+        }
+      }
+
+      const potByPerson = new Map();
+      for (const rule of restrictions.filter((item) => item.type === 'pot')) {
+        if (potByPerson.has(rule.a) && potByPerson.get(rule.a) !== rule.pot) {
+          return 'Uma mesma pessoa foi cadastrada em mais de um pote.';
+        }
+        potByPerson.set(rule.a, rule.pot);
+      }
+
+      for (const group of togetherGroups) {
+        const groupPots = new Set();
+        for (const person of group) {
+          if (!potByPerson.has(person)) continue;
+          const pot = potByPerson.get(person);
+          if (groupPots.has(pot)) {
+            return 'Há regras conflitantes: pessoas do mesmo pote também foram configuradas para permanecer juntas.';
+          }
+          groupPots.add(pot);
+        }
+      }
+
+      const nonSoloGroups = togetherGroups.filter((group) => !group.some((person) => plan.soloPeople.has(person)));
+      if (nonSoloGroups.length < plan.nonSoloTeamCount) {
+        return 'As regras de pessoas juntas não permitem preencher a quantidade solicitada de equipes sem deixar equipes vazias.';
+      }
+
+      if (nonSoloGroups.some((group) => group.length > plan.nonSoloMaxSize)) {
+        return 'Uma regra de pessoas juntas forma um grupo maior do que a capacidade disponível em uma equipe.';
+      }
+
       const potCountMap = new Map();
-      potRules.forEach((rule) => potCountMap.set(rule.pot, (potCountMap.get(rule.pot) || 0) + 1));
+      restrictions
+        .filter((rule) => rule.type === 'pot' && !plan.soloPeople.has(rule.a))
+        .forEach((rule) => potCountMap.set(rule.pot, (potCountMap.get(rule.pot) || 0) + 1));
       for (const [, count] of potCountMap) {
-        if (count > teamCountLocal) return 'Existe um pote com mais participantes do que a quantidade de equipes.';
+        if (count > plan.nonSoloTeamCount) {
+          return 'Existe um pote com mais participantes do que a quantidade de equipes disponíveis para eles.';
+        }
+      }
+
+      return null;
+    }
+
+    function createConstrainedTeams(participants, resolution, attempts) {
+      const plan = getTeamPlan(participants, resolution);
+      if (plan.error) return null;
+
+      const togetherGroups = buildTogetherGroups(participants);
+      const potByPerson = new Map(
+        restrictions.filter((rule) => rule.type === 'pot').map((rule) => [rule.a, rule.pot])
+      );
+      const blockedByPerson = new Map(participants.map((person) => [person, new Set()]));
+      restrictions.filter((rule) => rule.type === 'pair').forEach((rule) => {
+        blockedByPerson.get(rule.a).add(rule.b);
+        blockedByPerson.get(rule.b).add(rule.a);
+      });
+
+      const units = togetherGroups
+        .filter((group) => !group.some((person) => plan.soloPeople.has(person)))
+        .map((members) => {
+          const pots = new Set(members.filter((person) => potByPerson.has(person)).map((person) => potByPerson.get(person)));
+          const blockedCount = members.reduce((total, person) => total + blockedByPerson.get(person).size, 0);
+          return {
+            members,
+            pots,
+            difficulty: members.length * 1000 + blockedCount * 20 + pots.size * 10
+          };
+        });
+
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        const teamStates = Array.from({ length: plan.nonSoloTeamCount }, () => ({
+          members: [],
+          pots: new Set()
+        }));
+        const orderedUnits = shuffle(units).sort((a, b) => b.difficulty - a.difficulty);
+        let failed = false;
+
+        for (let unitIndex = 0; unitIndex < orderedUnits.length; unitIndex += 1) {
+          const unit = orderedUnits[unitIndex];
+          const remainingUnits = orderedUnits.length - unitIndex;
+          const emptyTeams = teamStates.filter((team) => team.members.length === 0).length;
+          const candidates = teamStates.filter((team) => {
+            if (team.members.length + unit.members.length > plan.nonSoloMaxSize) return false;
+            if (emptyTeams === remainingUnits && team.members.length > 0) return false;
+            for (const pot of unit.pots) {
+              if (team.pots.has(pot)) return false;
+            }
+            for (const person of unit.members) {
+              const blocked = blockedByPerson.get(person);
+              if (team.members.some((member) => blocked.has(member))) return false;
+            }
+            return true;
+          });
+
+          if (!candidates.length) {
+            failed = true;
+            break;
+          }
+
+          const smallestTeamSize = Math.min(...candidates.map((team) => team.members.length));
+          const bestCandidates = candidates.filter((team) => team.members.length === smallestTeamSize);
+          const selectedTeam = bestCandidates[Math.floor(Math.random() * bestCandidates.length)];
+          selectedTeam.members.push(...unit.members);
+          unit.pots.forEach((pot) => selectedTeam.pots.add(pot));
+        }
+
+        if (failed || teamStates.some((team) => team.members.length === 0)) continue;
+
+        const soloTeams = Array.from(plan.soloPeople).map((person) => [person]);
+        const assembledTeams = soloTeams.concat(teamStates.map((team) => shuffle(team.members)));
+        return shuffle(assembledTeams);
       }
 
       return null;
@@ -3209,6 +3406,12 @@ display:flex !important;
             if (team.includes(rule.a) && team.includes(rule.b)) return true;
           }
         }
+
+        if (rule.type === 'together') {
+          const teamA = teams.findIndex((team) => team.includes(rule.a));
+          const teamB = teams.findIndex((team) => team.includes(rule.b));
+          if (teamA === -1 || teamB === -1 || teamA !== teamB) return true;
+        }
       }
 
       const potRules = restrictions.filter((r) => r.type === 'pot');
@@ -3228,6 +3431,21 @@ display:flex !important;
       return false;
     }
 
+    function isValidTeamResult(teams, participants, resolution) {
+      if (!Array.isArray(teams) || !teams.length || teams.some((team) => !Array.isArray(team) || !team.length)) return false;
+
+      const flattened = teams.flat();
+      if (flattened.length !== participants.length) return false;
+      if (new Set(flattened).size !== participants.length) return false;
+      if (participants.some((person) => !flattened.includes(person))) return false;
+
+      const plan = getTeamPlan(participants, resolution);
+      if (plan.error || teams.length !== plan.totalTeams) return false;
+      if (resolution.mode !== 'count' && teams.some((team) => team.length > resolution.sizeLimit)) return false;
+
+      return !violatesRestrictions(teams);
+    }
+
     function renderTeams(teams = lastTeams) {
       results.innerHTML = '';
       if (!teams.length) return;
@@ -3243,7 +3461,7 @@ display:flex !important;
     function drawTeams() {
       clearStatus();
       const participants = getParticipantList();
-      const attempts = Math.max(100, Number(maxAttempts.value) || 5000);
+      const attempts = Math.min(50000, Math.max(100, Math.floor(Number(maxAttempts.value) || 5000)));
 
       if (participants.length < 2) {
         showStatus('Adicione pelo menos 2 participantes.', 'error');
@@ -3269,22 +3487,9 @@ display:flex !important;
         return;
       }
 
-      let found = null;
-      for (let i = 0; i < attempts; i += 1) {
-        let teams = null;
-        if (resolution.mode === 'count') teams = createTeamsByCount(participants, resolution.totalTeams);
-        else if (resolution.mode === 'size') teams = createTeamsBySize(participants, resolution.sizeLimit);
-        else teams = createTeamsByCountAndSize(participants, resolution.totalTeams, resolution.sizeLimit);
+      const found = createConstrainedTeams(participants, resolution, attempts);
 
-        if (!teams) continue;
-        teams = applyPotDistribution(teams);
-        if (!violatesRestrictions(teams)) {
-          found = teams;
-          break;
-        }
-      }
-
-      if (!found) {
+      if (!found || !isValidTeamResult(found, participants, resolution)) {
         showStatus('Não foi possível gerar equipes com essas regras. Tente ajustar a divisão, aumentar equipes ou remover algumas regras.', 'error');
         return;
       }
@@ -3747,12 +3952,14 @@ display:flex !important;
           continue;
         }
 
-        if (rule.type === 'pair' && typeof rule.a === 'string' && typeof rule.b === 'string') {
+        if ((rule.type === 'pair' || rule.type === 'together') && typeof rule.a === 'string' && typeof rule.b === 'string') {
           const a = rule.a.trim();
           const b = rule.b.trim();
           if (!a || !b || a === b) continue;
           const [first, second] = normalizePair(a, b);
-          normalized.push({ type: 'pair', a: first, b: second });
+          if (!normalized.some((item) => item.type === rule.type && item.a === first && item.b === second)) {
+            normalized.push({ type: rule.type, a: first, b: second });
+          }
           continue;
         }
 
@@ -3811,7 +4018,7 @@ display:flex !important;
       teamCount.value = data.teamCount || 8;
       teamSize.value = data.teamSize ?? '';
       maxAttempts.value = data.maxAttempts || 5000;
-      restrictions = Array.isArray(data.restrictions) ? data.restrictions : [];
+      restrictions = Array.isArray(data.restrictions) ? normalizeImportedRestrictions(data.restrictions) : [];
       lastTeams = Array.isArray(data.lastTeams) ? data.lastTeams : [];
       updateParticipantSelectors();
       updateRestrictionUi();
