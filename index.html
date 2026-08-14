@@ -4020,6 +4020,8 @@ display:flex !important;
       maxAttempts.value = data.maxAttempts || 5000;
       restrictions = Array.isArray(data.restrictions) ? normalizeImportedRestrictions(data.restrictions) : [];
       lastTeams = Array.isArray(data.lastTeams) ? data.lastTeams : [];
+      wheelItems = [];
+      lastWheelWinner = null;
       updateParticipantSelectors();
       updateRestrictionUi();
       renderRestrictions();
@@ -4063,6 +4065,7 @@ display:flex !important;
       restrictions = Array.isArray(data.restrictions) ? normalizeImportedRestrictions(data.restrictions) : [];
       lastTeams = Array.isArray(data.lastTeams) ? data.lastTeams.filter((team) => Array.isArray(team)).map((team) => team.map((item) => String(item))) : [];
       wheelItems = [];
+      lastWheelWinner = null;
       forcedNextSelection = { individual: '', group: '' };
       updateParticipantSelectors();
       updateRestrictionUi();
@@ -4114,6 +4117,7 @@ display:flex !important;
       restrictions = [];
       lastTeams = [];
       wheelItems = [];
+      lastWheelWinner = null;
       forcedNextSelection = { individual: '', group: '' };
       stopWheelIdle();
       results.innerHTML = '';
@@ -4147,6 +4151,46 @@ display:flex !important;
       return str.length > max ? str.slice(0, max - 1) + '…' : str;
     }
 
+    function getTeamIndexFromWheelLabel(label, teamsSource = lastTeams) {
+      const match = /^Equipe\s+(\d+)$/.exec(String(label || '').trim());
+      if (!match) return -1;
+      const teamIndex = Number(match[1]) - 1;
+      return Number.isInteger(teamIndex) && teamIndex >= 0 && teamIndex < teamsSource.length ? teamIndex : -1;
+    }
+
+    function resolveWheelWinner(items, selectedIndex, mode, teamsSource = lastTeams) {
+      const selectedValue = items[selectedIndex];
+      if (typeof selectedValue !== 'string' || !selectedValue) return null;
+
+      if (mode === 'group') {
+        const teamIndex = getTeamIndexFromWheelLabel(selectedValue, teamsSource);
+        if (teamIndex < 0) return null;
+        const members = teamsSource[teamIndex].join(', ');
+        return {
+          mode,
+          value: selectedValue,
+          label: selectedValue,
+          wheelIndex: selectedIndex,
+          teamIndex,
+          previewValue: teamIndex,
+          title: selectedValue,
+          subtitle: members,
+          resultText: `Sorteado: ${selectedValue} — ${members}`
+        };
+      }
+
+      return {
+        mode,
+        value: selectedValue,
+        label: selectedValue,
+        wheelIndex: selectedIndex,
+        previewValue: selectedValue,
+        title: selectedValue,
+        subtitle: 'Aluno sorteado na roleta',
+        resultText: `Sorteado: ${selectedValue}`
+      };
+    }
+
     function renderGroupPreview(highlightValue = null) {
       groupPreviewList.innerHTML = '';
       if (!lastTeams.length) {
@@ -4178,7 +4222,7 @@ display:flex !important;
         return;
       }
 
-      const availableGroups = new Set(wheelItems.filter((item) => /^Equipe \d+$/.test(item)).map((item) => Number(item.replace('Equipe ', '')) - 1));
+      const availableGroups = new Set(wheelItems.map(getTeamIndexFromWheelLabel).filter((index) => index >= 0));
       lastTeams.forEach((team, index) => {
         const available = wheelMode.value !== 'group' || !wheelLoaded || availableGroups.has(index);
         const item = document.createElement('div');
@@ -4202,7 +4246,7 @@ display:flex !important;
     function getConfigCandidates(mode) {
       if (!lastTeams.length) return [];
       if (mode === 'group') {
-        const availableGroups = new Set(wheelItems.filter((item) => /^Equipe \d+$/.test(item)).map((item) => Number(item.replace('Equipe ', '')) - 1));
+        const availableGroups = new Set(wheelItems.map(getTeamIndexFromWheelLabel).filter((index) => index >= 0));
         return lastTeams.map((team, index) => ({
           value: `Equipe ${index + 1}`,
           label: `Equipe ${index + 1}`,
@@ -4325,19 +4369,30 @@ display:flex !important;
         return;
       }
 
-      if (wheelMode.value === 'group') {
-        wheelItems = wheelItems.filter((_, index) => index !== lastWheelWinner.index);
-        renderGroupPreview();
-      } else {
-        wheelItems = wheelItems.filter((_, index) => index !== lastWheelWinner.index);
+      if (lastWheelWinner.mode !== wheelMode.value) {
+        hideWinnerPopup();
+        lastWheelWinner = null;
+        return;
       }
+
+      const removeIndex = wheelItems.indexOf(lastWheelWinner.value);
+      if (removeIndex < 0) {
+        hideWinnerPopup();
+        lastWheelWinner = null;
+        renderGroupPreview();
+        return;
+      }
+
+      const removedLabel = lastWheelWinner.label;
+      wheelItems.splice(removeIndex, 1);
+      renderGroupPreview();
 
       if (!wheelItems.length) {
         wheelResult.textContent = 'Todos os itens já foram removidos da roleta.';
         drawWheel([], 0);
         stopWheelIdle();
       } else {
-        wheelResult.textContent = `${lastWheelWinner.label} removido(a) da roleta.`;
+        wheelResult.textContent = `${removedLabel} removido(a) da roleta.`;
         wheelRotation = 0;
         drawWheel(wheelItems, wheelRotation);
         startWheelIdle();
@@ -4369,7 +4424,7 @@ display:flex !important;
       }, clearAfter);
     }
 
-    function drawWheel(items, rotation = 0) {
+    function drawWheel(items, rotation = 0, displayMode = wheelMode.value) {
       ctx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
       const radius = wheelCanvas.width / 2;
       ctx.save();
@@ -4404,11 +4459,11 @@ display:flex !important;
         ctx.rotate(start + angle / 2);
         ctx.textAlign = 'right';
         ctx.fillStyle = '#ffffff';
-        const fontSize = wheelMode.value === 'group'
+        const fontSize = displayMode === 'group'
           ? Math.max(13, Math.min(20, 420 / items.length))
           : Math.max(12, Math.min(18, 320 / items.length));
         ctx.font = `${fontSize}px Arial`;
-        ctx.fillText(fitText(item, wheelMode.value === 'group' ? 12 : 18), radius - 28, 6);
+        ctx.fillText(fitText(item, displayMode === 'group' ? 12 : 18), radius - 28, 6);
         ctx.restore();
       });
 
@@ -4455,6 +4510,8 @@ display:flex !important;
         return;
       }
 
+      hideWinnerPopup();
+      lastWheelWinner = null;
       wheelItems = wheelMode.value === 'group'
         ? lastTeams.map((_, i) => `Equipe ${i + 1}`)
         : lastTeams.flat();
@@ -4586,14 +4643,17 @@ display:flex !important;
       isSpinning = true;
       stopWheelIdle();
 
-      const anglePerItem = (Math.PI * 2) / wheelItems.length;
+      const spinItems = [...wheelItems];
+      const spinMode = wheelMode.value;
+      const spinTeams = lastTeams;
+      const anglePerItem = (Math.PI * 2) / spinItems.length;
       let selectedIndex;
-      const forcedValue = forcedNextSelection[wheelMode.value];
+      const forcedValue = forcedNextSelection[spinMode];
       if (forcedValue) {
-        const forcedIndex = wheelItems.findIndex((item) => item === forcedValue);
-        selectedIndex = forcedIndex >= 0 ? forcedIndex : Math.floor(Math.random() * wheelItems.length);
+        const forcedIndex = spinItems.findIndex((item) => item === forcedValue);
+        selectedIndex = forcedIndex >= 0 ? forcedIndex : Math.floor(Math.random() * spinItems.length);
       } else {
-        selectedIndex = Math.floor(Math.random() * wheelItems.length);
+        selectedIndex = Math.floor(Math.random() * spinItems.length);
       }
       const extraTurns = 6;
       const centerOffset = anglePerItem / 2;
@@ -4608,29 +4668,41 @@ display:flex !important;
         const progress = Math.min((now - start) / duration, 1);
         const eased = 1 - Math.pow(1 - progress, 3);
         wheelRotation = initial + (targetRotation - initial) * eased;
-        drawWheel(wheelItems, wheelRotation);
+        drawWheel(spinItems, wheelRotation, spinMode);
 
         if (progress < 1) {
           requestAnimationFrame(animate);
         } else {
           isSpinning = false;
           wheelRotation = targetRotation % (Math.PI * 2);
-          drawWheel(wheelItems, wheelRotation);
-          if (wheelMode.value === 'group') {
-            const members = lastTeams[selectedIndex].join(', ');
-            lastWheelWinner = { index: selectedIndex, label: `Equipe ${selectedIndex + 1}` };
-            renderGroupPreview(selectedIndex);
-            wheelResult.textContent = `Sorteado: Equipe ${selectedIndex + 1} — ${members}`;
-            showWinnerPopup(`Equipe ${selectedIndex + 1}`, members);
-            forcedNextSelection.group = '';
-          } else {
-            const student = wheelItems[selectedIndex];
-            lastWheelWinner = { index: selectedIndex, label: student };
-            renderGroupPreview(student);
-            wheelResult.textContent = `Sorteado: ${student}`;
-            showWinnerPopup(student, 'Aluno sorteado na roleta');
-            forcedNextSelection.individual = '';
+          const wheelWasChanged = wheelMode.value !== spinMode
+            || lastTeams !== spinTeams
+            || wheelItems.length !== spinItems.length
+            || wheelItems.some((item, index) => item !== spinItems[index]);
+
+          if (wheelWasChanged) {
+            lastWheelWinner = null;
+            wheelRotation = 0;
+            drawWheel(wheelItems, wheelRotation);
+            wheelResult.textContent = 'A roleta foi alterada durante o giro. Gire novamente.';
+            startWheelIdle();
+            return;
           }
+
+          drawWheel(spinItems, wheelRotation, spinMode);
+          const winner = resolveWheelWinner(spinItems, selectedIndex, spinMode, spinTeams);
+          if (!winner) {
+            lastWheelWinner = null;
+            wheelResult.textContent = 'Não foi possível identificar o item sorteado. Recarregue a roleta.';
+            showStatus('A roleta ficou dessincronizada. Clique em carregar na roleta e tente novamente.', 'error');
+            return;
+          }
+
+          lastWheelWinner = winner;
+          renderGroupPreview(winner.previewValue);
+          wheelResult.textContent = winner.resultText;
+          showWinnerPopup(winner.title, winner.subtitle);
+          forcedNextSelection[spinMode] = '';
           updateForcedSelectionInfo();
           startWheelIdle();
         }
@@ -5179,6 +5251,8 @@ display:flex !important;
 
     wheelMode.addEventListener('change', () => {
       wheelItems = [];
+      lastWheelWinner = null;
+      hideWinnerPopup();
       stopWheelIdle();
       drawWheel([], 0);
       renderGroupPreview();
